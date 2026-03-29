@@ -482,7 +482,11 @@
 }
 
 .linkBack {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--accent-strong);
+  text-align: left;
 }
 
 @media (max-width: 919px) {

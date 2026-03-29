@@ -1,5 +1,5 @@
-import { PartyShell } from "@/components/party-shell";
+import { redirect } from "next/navigation";
 
 export default function PartyPage() {
-  return <PartyShell />;
+  redirect("/");
 }

@@ -1,22 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
+
+import { saveActivePartyCode } from "@/lib/party-session";
 
 import styles from "./home-shell.module.css";
 
 const NICKNAME_KEY = "mafia-last-nickname";
-
-function saveActivePartyCode(code: string) {
-  localStorage.setItem("mafia-active-party-code", code.toUpperCase());
-}
+const NICKNAME_EVENT = "mafia-nickname-changed";
 
 function readStoredValue(key: string) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
   return localStorage.getItem(key) ?? "";
 }
 
 function saveStoredValue(key: string, value: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   localStorage.setItem(key, value);
+  window.dispatchEvent(new Event(NICKNAME_EVENT));
 }
 
 function saveSession(code: string, nickname: string) {
@@ -27,21 +34,26 @@ function saveSession(code: string, nickname: string) {
 }
 
 export function HomeShell() {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [nickname, setNickname] = useState(() =>
-    typeof window === "undefined" ? "" : readStoredValue(NICKNAME_KEY),
-  );
   const [joinCode, setJoinCode] = useState("");
+  const nickname = useSyncExternalStore(
+    (onStoreChange) => {
+      if (typeof window === "undefined") {
+        return () => undefined;
+      }
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+      window.addEventListener("storage", onStoreChange);
+      window.addEventListener(NICKNAME_EVENT, onStoreChange);
 
-    saveStoredValue(NICKNAME_KEY, nickname);
-  }, [nickname]);
+      return () => {
+        window.removeEventListener("storage", onStoreChange);
+        window.removeEventListener(NICKNAME_EVENT, onStoreChange);
+      };
+    },
+    () => readStoredValue(NICKNAME_KEY),
+    () => "",
+  );
 
   async function handleCreateSubmit() {
     setError(null);
@@ -69,10 +81,9 @@ export function HomeShell() {
           return;
         }
 
-        setNickname(payload.nickname);
+        saveStoredValue(NICKNAME_KEY, payload.nickname);
         saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
-        router.push("/party");
       })().catch(() => {
         setError("Kreiranje partije nije uspelo.");
       });
@@ -106,10 +117,9 @@ export function HomeShell() {
           return;
         }
 
-        setNickname(payload.nickname);
+        saveStoredValue(NICKNAME_KEY, payload.nickname);
         saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
-        router.push("/party");
       })().catch(() => {
         setError("Ulazak u partiju nije uspeo.");
       });
@@ -128,7 +138,7 @@ export function HomeShell() {
           <span>Nadimak</span>
           <input
             value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
+            onChange={(event) => saveStoredValue(NICKNAME_KEY, event.target.value)}
             placeholder="Na primer Mika"
             minLength={2}
             maxLength={24}
@@ -177,7 +187,9 @@ export function HomeShell() {
           <button
             type="button"
             className={styles.secondaryButton}
-            disabled={isPending || nickname.trim().length < 2 || joinCode.trim().length !== 5}
+            disabled={
+              isPending || nickname.trim().length < 2 || joinCode.trim().length !== 5
+            }
             onClick={() => {
               void handleJoinSubmit();
             }}

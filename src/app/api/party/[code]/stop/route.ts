@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getPartyCode, getPartySnapshot, stopGame } from "@/lib/game";
+import { getPartyCode, stopGame } from "@/lib/game";
 import { getPartyStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +24,10 @@ export async function POST(
     }
 
     stopGame(party, body.nickname);
+    store.delete(code);
 
     return NextResponse.json({
-      party: getPartySnapshot(party, body.nickname),
+      stopped: true,
     });
   } catch (error) {
     return NextResponse.json(

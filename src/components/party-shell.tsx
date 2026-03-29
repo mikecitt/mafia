@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 
 import type { PartySnapshot, PlayerStatus } from "@/lib/game";
+import { clearActivePartyCode, readActivePartyCode } from "@/lib/party-session";
 
 import styles from "./party-shell.module.css";
 
@@ -23,11 +23,6 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 type MobileSection = "game" | "players" | "rules" | "moderator";
-
-function readActivePartyCode() {
-  const raw = localStorage.getItem("mafia-active-party-code");
-  return raw ? raw.trim().toUpperCase() : null;
-}
 
 function readSession(code: string) {
   const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
@@ -259,6 +254,19 @@ export function PartyShell() {
     };
 
     if (!response.ok || !payload.party) {
+      if (response.status === 404) {
+        removeSession(activeCode);
+        clearActivePartyCode();
+        setSnapshot(null);
+        setSessionNickname(null);
+        setReconnectNickname("");
+        setError(null);
+        setActionError(null);
+        setTtsEnabled(false);
+        hasInitializedTts.current = false;
+        return;
+      }
+
       setSnapshot(null);
       setError(payload.error ?? "Partija nije dostupna.");
       return;
@@ -428,13 +436,51 @@ export function PartyShell() {
     hasInitializedTts.current = false;
   }
 
+  function returnHome() {
+    clearActivePartyCode();
+  }
+
   async function handleStopGame() {
     if (!window.confirm("Da li sigurno zelis da zaustavis partiju i vratis sve u lobby?")) {
       return;
     }
 
     setIsRoleVisible(false);
-    await postAction(`/api/party/${partyCode}/stop`, {});
+    setActionError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/party/${partyCode}/stop`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nickname: sessionNickname,
+        }),
+      });
+
+      const payload = (await response.json()) as { stopped?: boolean; error?: string };
+
+      if (!response.ok || !payload.stopped) {
+        setActionError(payload.error ?? "Stopiranje partije nije uspelo.");
+        return;
+      }
+
+      removeSession(partyCode);
+      clearActivePartyCode();
+      setSnapshot(null);
+      setSessionNickname(null);
+      setReconnectNickname("");
+      setError(null);
+      setActionError(null);
+      setTtsEnabled(false);
+      hasInitializedTts.current = false;
+    } catch {
+      setActionError("Stopiranje partije nije uspelo.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const joinedPlayers = snapshot?.lobby.joinedCount ?? 1;
@@ -880,9 +926,9 @@ export function PartyShell() {
           <h1>Na ovom uređaju nema aktivne partije.</h1>
           <p>Vrati se na početak, unesi kod tamo i zatim otvori ovaj ekran.</p>
 
-          <Link href="/" className={styles.linkBack}>
+          <button type="button" className={styles.linkBack} onClick={returnHome}>
             Nazad na pocetak
-          </Link>
+          </button>
         </section>
       </main>
     );
@@ -920,9 +966,9 @@ export function PartyShell() {
 
           {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
 
-          <Link href="/" className={styles.linkBack}>
+          <button type="button" className={styles.linkBack} onClick={returnHome}>
             Nazad na pocetak
-          </Link>
+          </button>
         </section>
       </main>
     );
@@ -1075,9 +1121,9 @@ export function PartyShell() {
           <span className={styles.kicker}>Party {partyCode}</span>
           <h1>Ucitavam stanje partije...</h1>
           <p>Ako je sesija istekla, vrati se sa istim nadimkom.</p>
-          <Link href="/" className={styles.linkBack}>
+          <button type="button" className={styles.linkBack} onClick={returnHome}>
             Nazad na pocetak
-          </Link>
+          </button>
         </section>
       )}
     </main>

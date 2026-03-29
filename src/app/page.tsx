@@ -1,5 +1,5 @@
-import { HomeShell } from "@/components/home-shell";
+import { AppShell } from "@/components/app-shell";
 
 export default function Home() {
-  return <HomeShell />;
+  return <AppShell />;
 }
