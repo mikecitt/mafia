@@ -1,0 +1,96 @@
+:root {
+  --bg-0: #10080c;
+  --bg-1: #251015;
+  --panel: rgba(29, 15, 21, 0.82);
+  --panel-border: rgba(255, 220, 180, 0.16);
+  --panel-soft: rgba(255, 255, 255, 0.05);
+  --text-main: #f8ead8;
+  --text-muted: rgba(248, 234, 216, 0.72);
+  --accent: #d04f36;
+  --accent-strong: #f48d52;
+  --accent-soft: rgba(244, 141, 82, 0.18);
+  --ok: #8fcb8a;
+  --warn: #e4b968;
+  --danger: #d96565;
+  --shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+}
+
+html {
+  height: 100%;
+  color-scheme: dark;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+body {
+  min-height: 100%;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at top, rgba(240, 125, 67, 0.16), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(104, 22, 35, 0.28), transparent 30%),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+main {
+  width: min(1180px, calc(100vw - 2rem));
+  margin: 0 auto;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.04));
+  pointer-events: none;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

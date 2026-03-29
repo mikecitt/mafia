@@ -1,0 +1,443 @@
+.shell {
+  padding: 1.4rem 0 3rem;
+  display: grid;
+  gap: 1rem;
+  animation: rise-in 420ms ease;
+}
+
+.headerCard,
+.promptCard,
+.panel,
+.centerCard {
+  border-radius: 26px;
+  border: 1px solid var(--panel-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.headerCard,
+.promptCard,
+.panel {
+  padding: 1.2rem;
+}
+
+.centerCard {
+  padding: 1.6rem;
+  display: grid;
+  gap: 1rem;
+  max-width: 620px;
+  width: 100%;
+  margin: 12vh auto 0;
+}
+
+.kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.headerCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.identity {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.identity h1 {
+  font-size: clamp(2rem, 10vw, 4rem);
+  line-height: 0.95;
+}
+
+.identity p {
+  max-width: 56ch;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.headerActions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.badge,
+.toggleButton,
+.linkButton,
+.stopButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.75rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.toggleButton,
+.linkButton,
+.stopButton {
+  border: 0;
+}
+
+.stopButton {
+  background: rgba(217, 101, 101, 0.18);
+  color: #ffd8d8;
+}
+
+.statusAlive {
+  background: rgba(143, 203, 138, 0.16);
+  color: #dcf9d7;
+}
+
+.statusDead {
+  background: rgba(217, 101, 101, 0.16);
+  color: #ffd2d2;
+}
+
+.statusOut {
+  background: rgba(228, 185, 104, 0.18);
+  color: #ffe7b8;
+}
+
+.promptCard {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.secretCard {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.2rem;
+  border-radius: 26px;
+  border: 1px solid var(--panel-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.roleHoldButton {
+  min-height: 110px;
+  padding: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(0, 0, 0, 0.12);
+  color: var(--text-main);
+  display: grid;
+  gap: 0.4rem;
+  text-align: left;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.roleHoldButton strong {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: clamp(1.55rem, 6vw, 2.3rem);
+  line-height: 1;
+}
+
+.roleHoldButtonVisible {
+  border-color: rgba(244, 141, 82, 0.35);
+  background:
+    linear-gradient(145deg, rgba(244, 141, 82, 0.24), rgba(244, 141, 82, 0.08)),
+    rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.roleHoldHint {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.promptCard h2 {
+  font-size: clamp(1.8rem, 7vw, 3.2rem);
+  line-height: 1;
+}
+
+.promptCard p {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.pollingHint {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.92rem;
+}
+
+.layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.column {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.panelHeader {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.configForm {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.copy {
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.subtleBlock,
+.notePanel,
+.summaryPanel,
+.historyCard {
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.subtleBlock {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.notePanel {
+  background: rgba(244, 141, 82, 0.12);
+  border-color: rgba(244, 141, 82, 0.24);
+}
+
+.summaryPanel {
+  display: grid;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.choiceGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.actionRow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.field input {
+  min-height: 50px;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-main);
+}
+
+.toggleList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.choiceButton,
+.primaryButton,
+.secondaryButton,
+.form button {
+  min-height: 50px;
+  padding: 0.9rem 1rem;
+  border: 0;
+  border-radius: 18px;
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.choiceButton,
+.secondaryButton,
+.form button {
+  color: var(--text-main);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+}
+
+.primaryButton {
+  color: #1c1011;
+  background: linear-gradient(135deg, var(--accent-strong), #ffc589);
+}
+
+.choiceButton:hover,
+.primaryButton:hover,
+.secondaryButton:hover,
+.form button:hover {
+  transform: translateY(-1px);
+}
+
+.playerList {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.playerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.playerMeta {
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.93rem;
+}
+
+.rowAside {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dotOn {
+  background: var(--ok);
+  box-shadow: 0 0 16px rgba(143, 203, 138, 0.65);
+}
+
+.dotOff {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.ruleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ruleCard {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ruleCard strong {
+  font-size: 1.25rem;
+}
+
+.ruleCard span {
+  color: var(--text-muted);
+}
+
+.history {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.historyCard {
+  display: grid;
+  gap: 0.25rem;
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text-muted);
+}
+
+.form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.form input {
+  min-height: 52px;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text-main);
+}
+
+.errorBanner {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(217, 101, 101, 0.32);
+  background: rgba(217, 101, 101, 0.12);
+  color: #ffcbc2;
+}
+
+.linkBack {
+  color: var(--accent-strong);
+}
+
+@media (min-width: 920px) {
+  .headerCard {
+    grid-template-columns: 1.5fr auto;
+    align-items: end;
+  }
+
+  .layout {
+    grid-template-columns: 1.2fr 0.95fr;
+  }
+
+  .choiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actionRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
