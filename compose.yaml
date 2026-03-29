@@ -1,0 +1,14 @@
+services:
+  mafia-helper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mafia-helper:latest
+    container_name: mafia-helper
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000

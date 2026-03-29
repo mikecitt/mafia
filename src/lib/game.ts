@@ -13,7 +13,6 @@ export type PartyPhase =
   | "handoff";
 
 export interface PartyConfigInput {
-  totalPlayers: number;
   mafiaCount: number;
   hasDoctor: boolean;
   hasPolice: boolean;
@@ -21,6 +20,7 @@ export interface PartyConfigInput {
 }
 
 export interface PartyConfig extends PartyConfigInput {
+  totalPlayers: number;
   citizenCount: number;
 }
 
@@ -158,7 +158,6 @@ const PRESENCE_WINDOW_MS = 15_000;
 const NIGHT_PROMPT_DELAY_MS = 5_000;
 
 export const DEFAULT_PARTY_CONFIG_INPUT: PartyConfigInput = {
-  totalPlayers: 10,
   mafiaCount: 2,
   hasDoctor: true,
   hasPolice: true,
@@ -247,7 +246,33 @@ function getRoleText(role: NightRole, sleeping: boolean) {
 }
 
 function buildLobbyPrompt(party: Party) {
-  return `Partija je kreirana. Povezano je ${party.players.length} od ${party.config.totalPlayers} igrača.`;
+  return `Partija je kreirana. Trenutno je povezano ${party.players.length} igrača.`;
+}
+
+function buildConfigForTotalPlayers(input: PartyConfigInput, totalPlayers: number) {
+  const mafiaCount = Number(input.mafiaCount);
+  const hasDoctor = Boolean(input.hasDoctor);
+  const hasPolice = Boolean(input.hasPolice);
+  const hasLady = Boolean(input.hasLady);
+  const specialCount =
+    mafiaCount + Number(hasDoctor) + Number(hasPolice) + Number(hasLady);
+
+  return {
+    totalPlayers,
+    mafiaCount,
+    hasDoctor,
+    hasPolice,
+    hasLady,
+    citizenCount: totalPlayers - specialCount,
+  };
+}
+
+function getEffectiveConfig(party: Party) {
+  if (party.phase !== "lobby") {
+    return party.config;
+  }
+
+  return buildConfigForTotalPlayers(party.config, party.players.length);
 }
 
 function findPlayerByNickname(party: Party, nickname: string) {
@@ -588,36 +613,30 @@ export function ensurePartyProgress(party: Party) {
   }
 }
 
-export function validateConfig(input: PartyConfigInput) {
-  const totalPlayers = Number(input.totalPlayers);
-  const mafiaCount = Number(input.mafiaCount);
-  const hasDoctor = Boolean(input.hasDoctor);
-  const hasPolice = Boolean(input.hasPolice);
-  const hasLady = Boolean(input.hasLady);
-  const specialCount =
-    mafiaCount + Number(hasDoctor) + Number(hasPolice) + Number(hasLady);
-  const citizenCount = totalPlayers - specialCount;
+export function validateConfig(
+  input: PartyConfigInput,
+  totalPlayers: number,
+  options?: { requireMinimumPlayers?: boolean },
+) {
+  const config = buildConfigForTotalPlayers(input, Number(totalPlayers));
 
-  if (!Number.isInteger(totalPlayers) || totalPlayers < 5 || totalPlayers > 20) {
-    throw new Error("Broj igraca mora biti izmedju 5 i 20.");
+  if (!Number.isInteger(config.totalPlayers) || config.totalPlayers < 1 || config.totalPlayers > 20) {
+    throw new Error("Broj igraca mora biti izmedju 1 i 20.");
   }
 
-  if (!Number.isInteger(mafiaCount) || mafiaCount < 1 || mafiaCount > 5) {
+  if (!Number.isInteger(config.mafiaCount) || config.mafiaCount < 1 || config.mafiaCount > 5) {
     throw new Error("Broj mafijasa mora biti izmedju 1 i 5.");
   }
 
-  if (citizenCount < 1) {
+  if (options?.requireMinimumPlayers && config.totalPlayers < 5) {
+    throw new Error("Za pokretanje partije potrebno je najmanje 5 igraca.");
+  }
+
+  if (config.citizenCount < 1) {
     throw new Error("Mora ostati makar jedan gradjanin.");
   }
 
-  return {
-    totalPlayers,
-    mafiaCount,
-    hasDoctor,
-    hasPolice,
-    hasLady,
-    citizenCount,
-  };
+  return config;
 }
 
 export function generateCode(existingCodes: Set<string>) {
@@ -657,7 +676,7 @@ export function createParty(
 
   const party: Party = {
     code: generateCode(existingCodes),
-    config: validateConfig(configInput),
+    config: validateConfig(configInput, 10),
     createdAt,
     updatedAt: createdAt,
     phase: "lobby",
@@ -672,7 +691,7 @@ export function createParty(
     transitionEndsAt: null,
     transitionQueue: [],
     transitionCompletion: null,
-    promptText: "Partija je kreirana. Host sada podešava broj igrača i uloge.",
+    promptText: "Partija je kreirana. Host sada čeka igrače i podešava uloge.",
     promptKey: "lobby-created",
     actions: {},
     latestSummary: null,
@@ -705,8 +724,8 @@ export function joinParty(party: Party, nickname: string) {
     );
   }
 
-  if (party.players.length >= party.config.totalPlayers) {
-    throw new Error("Partija je vec popunjena.");
+  if (party.players.length >= 20) {
+    throw new Error("Dostignut je maksimalan broj igraca.");
   }
 
   const player: Player = {
@@ -741,11 +760,12 @@ export function startGame(party: Party, nickname: string) {
     throw new Error("Partija je vec pokrenuta.");
   }
 
-  if (party.players.length !== party.config.totalPlayers) {
-    throw new Error("Nisu se povezali svi igraci.");
-  }
+  const config = validateConfig(party.config, party.players.length, {
+    requireMinimumPlayers: true,
+  });
+  const roles = buildRolePool(config);
 
-  const roles = buildRolePool(party.config);
+  party.config = config;
 
   party.players.forEach((player, index) => {
     player.role = roles[index];
@@ -774,12 +794,7 @@ export function updatePartyConfig(
     throw new Error("Konfiguracija moze da se menja samo dok je partija u lobby-ju.");
   }
 
-  const config = validateConfig(configInput);
-
-  if (config.totalPlayers < party.players.length) {
-    throw new Error("Ukupan broj igraca ne moze biti manji od vec povezanih igraca.");
-  }
-
+  const config = validateConfig(configInput, party.players.length);
   party.config = config;
   party.promptText = buildLobbyPrompt(party);
   party.promptKey = promptKey(0, "lobby-config");
@@ -907,6 +922,7 @@ export function resolveDayVote(
 
 export function getPartySnapshot(party: Party, nickname: string): PartySnapshot {
   const requester = touchPlayer(party, nickname);
+  const effectiveConfig = getEffectiveConfig(party);
   const isModerator = requester.id === party.moderatorId;
   const currentAction = party.currentRole ? party.actions[party.currentRole] : null;
   const canAct =
@@ -924,7 +940,7 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
     round: party.round,
     promptText: party.promptText,
     promptKey: party.promptKey,
-    config: party.config,
+    config: effectiveConfig,
     requester: {
       id: requester.id,
       nickname: requester.nickname,
@@ -947,11 +963,12 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
     })),
     lobby: {
       joinedCount: party.players.length,
-      totalPlayers: party.config.totalPlayers,
+      totalPlayers: effectiveConfig.totalPlayers,
       canStart:
         requester.isHost &&
         party.phase === "lobby" &&
-        party.players.length === party.config.totalPlayers,
+        effectiveConfig.totalPlayers >= 5 &&
+        effectiveConfig.citizenCount >= 1,
     },
     daySummary: party.latestSummary
       ? {
@@ -982,7 +999,8 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
       canStart:
         requester.isHost &&
         party.phase === "lobby" &&
-        party.players.length === party.config.totalPlayers,
+        effectiveConfig.totalPlayers >= 5 &&
+        effectiveConfig.citizenCount >= 1,
       canAdvanceRoleReveal: requester.isHost && party.phase === "role-reveal",
       canResolveDay: requester.isHost && party.phase === "day-summary",
       canStop: requester.isHost,

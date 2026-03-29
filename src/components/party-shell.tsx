@@ -77,7 +77,7 @@ function prettyRole(role: string | null | undefined) {
 
 function phaseHint(snapshot: PartySnapshot) {
   if (snapshot.phase === "lobby") {
-    return "Host u lobby-ju podesava broj igraca i uloge, pa tek onda pokrece partiju.";
+    return "Host u lobby-ju podesava uloge, a broj igraca se uzima iz trenutno povezanih ljudi.";
   }
 
   if (snapshot.phase === "role-reveal") {
@@ -109,11 +109,11 @@ export function PartyShell() {
   const [isRoleVisible, setIsRoleVisible] = useState(false);
   const [mobileSection, setMobileSection] = useState<MobileSection>("game");
   const [isConfigDirty, setIsConfigDirty] = useState(false);
-  const [totalPlayers, setTotalPlayers] = useState(10);
   const [mafiaCount, setMafiaCount] = useState(2);
   const [hasDoctor, setHasDoctor] = useState(true);
   const [hasPolice, setHasPolice] = useState(true);
   const [hasLady, setHasLady] = useState(false);
+  const configRequestId = useRef(0);
   const lastPromptKey = useRef<string | null>(null);
   const fetchSnapshotRef = useRef<(() => Promise<void>) | null>(null);
   const hasInitializedTts = useRef(false);
@@ -137,12 +137,100 @@ export function PartyShell() {
       return;
     }
 
-    setTotalPlayers(snapshot.config.totalPlayers);
     setMafiaCount(snapshot.config.mafiaCount);
     setHasDoctor(snapshot.config.hasDoctor);
     setHasPolice(snapshot.config.hasPolice);
     setHasLady(snapshot.config.hasLady);
   }, [isConfigDirty, snapshot]);
+
+  useEffect(() => {
+    if (!snapshot?.requester.isHost || snapshot.phase !== "lobby" || !sessionNickname) {
+      return;
+    }
+
+    const configMatchesSnapshot =
+      mafiaCount === snapshot.config.mafiaCount &&
+      hasDoctor === snapshot.config.hasDoctor &&
+      hasPolice === snapshot.config.hasPolice &&
+      hasLady === snapshot.config.hasLady;
+
+    if (configMatchesSnapshot) {
+      if (isConfigDirty) {
+        setIsConfigDirty(false);
+      }
+
+      return;
+    }
+
+    const requestId = configRequestId.current + 1;
+    configRequestId.current = requestId;
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        setActionError(null);
+        setIsSubmitting(true);
+
+        try {
+          const response = await fetch(`/api/party/${partyCode}/config`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              nickname: sessionNickname,
+              mafiaCount,
+              hasDoctor,
+              hasPolice,
+              hasLady,
+            }),
+          });
+
+          const payload = (await response.json()) as {
+            party?: PartySnapshot;
+            error?: string;
+          };
+
+          if (requestId !== configRequestId.current) {
+            return;
+          }
+
+          if (!response.ok || !payload.party) {
+            setActionError(payload.error ?? "Cuvanje konfiguracije nije uspelo.");
+            return;
+          }
+
+          setSnapshot(payload.party);
+          setIsConfigDirty(false);
+          void fetchSnapshotRef.current?.();
+        } catch {
+          if (requestId === configRequestId.current) {
+            setActionError("Cuvanje konfiguracije nije uspelo.");
+          }
+        } finally {
+          if (requestId === configRequestId.current) {
+            setIsSubmitting(false);
+          }
+        }
+      })();
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    hasDoctor,
+    hasLady,
+    hasPolice,
+    isConfigDirty,
+    mafiaCount,
+    partyCode,
+    sessionNickname,
+    snapshot?.config.hasDoctor,
+    snapshot?.config.hasLady,
+    snapshot?.config.hasPolice,
+    snapshot?.config.mafiaCount,
+    snapshot?.phase,
+    snapshot?.requester.isHost,
+  ]);
 
   useEffect(() => {
     if (!snapshot || hasInitializedTts.current) {
@@ -340,18 +428,6 @@ export function PartyShell() {
     hasInitializedTts.current = false;
   }
 
-  async function handleConfigSave(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    await postAction(`/api/party/${partyCode}/config`, {
-      totalPlayers,
-      mafiaCount,
-      hasDoctor,
-      hasPolice,
-      hasLady,
-    });
-  }
-
   async function handleStopGame() {
     if (!window.confirm("Da li sigurno zelis da zaustavis partiju i vratis sve u lobby?")) {
       return;
@@ -363,12 +439,14 @@ export function PartyShell() {
 
   const joinedPlayers = snapshot?.lobby.joinedCount ?? 1;
   const citizenCount =
-    totalPlayers -
+    joinedPlayers -
     mafiaCount -
     Number(hasDoctor) -
     Number(hasPolice) -
     Number(hasLady);
-  const configInvalid = citizenCount < 1 || totalPlayers < joinedPlayers;
+  const configInvalid = citizenCount < 1;
+  const hasEnoughPlayersToStart = joinedPlayers >= 5;
+  const canStartWithDraft = hasEnoughPlayersToStart && !configInvalid;
   const resolvedMobileSection =
     mobileSection === "moderator" && !snapshot?.moderatorView
       ? "rules"
@@ -396,27 +474,10 @@ export function PartyShell() {
 
         {snapshot.phase === "lobby" ? (
           <div className={styles.stack}>
-            <p className={styles.copy}>
-              Povezano je {snapshot.lobby.joinedCount} od {snapshot.lobby.totalPlayers} igraca.
-            </p>
+            <p className={styles.copy}>Povezano je {snapshot.lobby.joinedCount} igraca.</p>
             {snapshot.hostControls.canUpdateConfig ? (
-              <form className={styles.configForm} onSubmit={handleConfigSave}>
+              <div className={styles.configForm}>
                 <div className={styles.choiceGrid}>
-                  <label className={styles.field}>
-                    <span>Ukupno igraca</span>
-                    <input
-                      type="number"
-                      min={5}
-                      max={20}
-                      value={totalPlayers}
-                      onChange={(event) => {
-                        setTotalPlayers(Number(event.target.value));
-                        setIsConfigDirty(true);
-                      }}
-                      required
-                    />
-                  </label>
-
                   <label className={styles.field}>
                     <span>Broj mafijasa</span>
                     <input
@@ -474,33 +535,34 @@ export function PartyShell() {
                 <div className={styles.summaryPanel}>
                   <strong>Gradjana ostaje: {citizenCount}</strong>
                   <span>
-                    {totalPlayers < joinedPlayers
-                      ? "Ukupan broj igraca ne moze biti manji od vec povezanih."
-                      : citizenCount < 1
-                        ? "Mora ostati makar jedan gradjanin."
+                    {citizenCount < 1
+                      ? "Mora ostati makar jedan gradjanin."
+                      : joinedPlayers < 5
+                        ? "Za pokretanje partije potrebno je najmanje 5 igraca."
                         : "Konfiguracija je spremna za random dodelu."}
                   </span>
                 </div>
 
-                <div className={styles.actionRow}>
-                  <button
-                    type="submit"
-                    className={styles.secondaryButton}
-                    disabled={isSubmitting || configInvalid}
-                  >
-                    Sacuvaj konfiguraciju
-                  </button>
+                <span className={styles.pollingHint}>
+                  {isConfigDirty ? "Primenjujem promene..." : "Promene se cuvaju automatski."}
+                </span>
 
+                <div className={styles.actionRow}>
                   <button
                     type="button"
                     className={styles.primaryButton}
-                    disabled={isSubmitting || !snapshot.hostControls.canStart || isConfigDirty}
+                    disabled={
+                      isSubmitting ||
+                      isConfigDirty ||
+                      !canStartWithDraft ||
+                      !snapshot.hostControls.canStart
+                    }
                     onClick={() => postAction(`/api/party/${partyCode}/start`, {})}
                   >
                     Pokreni partiju
                   </button>
                 </div>
-              </form>
+              </div>
             ) : (
               <>
                 <p className={styles.copy}>
@@ -510,7 +572,7 @@ export function PartyShell() {
                   {snapshot.config.hasLady ? "1 dama" : "bez dame"}.
                 </p>
                 <div className={styles.subtleBlock}>
-                  Ceka se da host sacuva konfiguraciju i pokrene partiju.
+                  Ceka se da host podesi uloge i pokrene partiju.
                 </div>
               </>
             )}

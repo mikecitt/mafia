@@ -16,7 +16,6 @@ export async function POST(request: Request) {
     };
     const store = getPartyStore();
     const party = createParty(new Set(store.keys()), body.nickname, {
-      totalPlayers: body.totalPlayers ?? DEFAULT_PARTY_CONFIG_INPUT.totalPlayers,
       mafiaCount: body.mafiaCount ?? DEFAULT_PARTY_CONFIG_INPUT.mafiaCount,
       hasDoctor: body.hasDoctor ?? DEFAULT_PARTY_CONFIG_INPUT.hasDoctor,
       hasPolice: body.hasPolice ?? DEFAULT_PARTY_CONFIG_INPUT.hasPolice,
