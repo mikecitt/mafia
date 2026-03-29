@@ -22,6 +22,11 @@ const ROLE_LABELS: Record<string, string> = {
   lady: "Dama",
 };
 
+function readActivePartyCode() {
+  const raw = localStorage.getItem("mafia-active-party-code");
+  return raw ? raw.trim().toUpperCase() : null;
+}
+
 function readSession(code: string) {
   const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
 
@@ -88,9 +93,10 @@ function phaseHint(snapshot: PartySnapshot) {
   return "Aplikacija je predala partiju novom moderatoru.";
 }
 
-export function PartyShell({ code }: { code: string }) {
+export function PartyShell() {
   const router = useRouter();
   const [isRefreshing, startRefreshTransition] = useTransition();
+  const [activeCode, setActiveCode] = useState<string | null>(null);
   const [sessionNickname, setSessionNickname] = useState<string | null>(null);
   const [reconnectNickname, setReconnectNickname] = useState("");
   const [snapshot, setSnapshot] = useState<PartySnapshot | null>(null);
@@ -108,12 +114,20 @@ export function PartyShell({ code }: { code: string }) {
   const lastPromptKey = useRef<string | null>(null);
   const fetchSnapshotRef = useRef<(() => Promise<void>) | null>(null);
   const hasInitializedTts = useRef(false);
+  const partyCode = activeCode ?? "";
 
   useEffect(() => {
-    const session = readSession(code);
+    const storedCode = readActivePartyCode();
+    setActiveCode(storedCode);
+
+    if (!storedCode) {
+      return;
+    }
+
+    const session = readSession(storedCode);
     setSessionNickname(session?.nickname ?? null);
     setReconnectNickname(session?.nickname ?? "");
-  }, [code]);
+  }, []);
 
   useEffect(() => {
     if (!snapshot || snapshot.phase !== "lobby" || isConfigDirty) {
@@ -137,12 +151,12 @@ export function PartyShell({ code }: { code: string }) {
   }, [snapshot]);
 
   async function fetchSnapshot() {
-    if (!sessionNickname) {
+    if (!sessionNickname || !activeCode) {
       return;
     }
 
     const response = await fetch(
-      `/api/party/${code}?nickname=${encodeURIComponent(sessionNickname)}`,
+      `/api/party/${activeCode}?nickname=${encodeURIComponent(sessionNickname)}`,
       {
         cache: "no-store",
       },
@@ -190,7 +204,7 @@ export function PartyShell({ code }: { code: string }) {
   });
 
   useEffect(() => {
-    if (!sessionNickname) {
+    if (!sessionNickname || !activeCode) {
       return;
     }
 
@@ -202,7 +216,7 @@ export function PartyShell({ code }: { code: string }) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [code, sessionNickname]);
+  }, [activeCode, sessionNickname]);
 
   useEffect(() => {
     if (!ttsEnabled || !snapshot?.promptText || !snapshot.promptKey) {
@@ -278,13 +292,18 @@ export function PartyShell({ code }: { code: string }) {
   async function reconnectToParty() {
     setActionError(null);
 
+    if (!activeCode) {
+      setActionError("Partija nije izabrana na ovom uređaju.");
+      return;
+    }
+
     const response = await fetch("/api/party/join", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        code,
+        code: activeCode,
         nickname: reconnectNickname,
       }),
     });
@@ -300,14 +319,17 @@ export function PartyShell({ code }: { code: string }) {
       return;
     }
 
-    saveSession(code, payload.nickname);
+    saveSession(activeCode, payload.nickname);
     setSessionNickname(payload.nickname);
     setError(null);
     router.refresh();
   }
 
   function disconnect() {
-    removeSession(code);
+    if (activeCode) {
+      removeSession(activeCode);
+    }
+
     setSnapshot(null);
     setSessionNickname(null);
     setReconnectNickname("");
@@ -318,7 +340,7 @@ export function PartyShell({ code }: { code: string }) {
   async function handleConfigSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    await postAction(`/api/party/${code}/config`, {
+    await postAction(`/api/party/${partyCode}/config`, {
       totalPlayers,
       mafiaCount,
       hasDoctor,
@@ -333,7 +355,7 @@ export function PartyShell({ code }: { code: string }) {
     }
 
     setIsRoleVisible(false);
-    await postAction(`/api/party/${code}/stop`, {});
+    await postAction(`/api/party/${partyCode}/stop`, {});
   }
 
   const joinedPlayers = snapshot?.lobby.joinedCount ?? 1;
@@ -345,11 +367,27 @@ export function PartyShell({ code }: { code: string }) {
     Number(hasLady);
   const configInvalid = citizenCount < 1 || totalPlayers < joinedPlayers;
 
+  if (!activeCode) {
+    return (
+      <main className={styles.shell}>
+        <section className={styles.centerCard}>
+          <span className={styles.kicker}>Party</span>
+          <h1>Na ovom uređaju nema aktivne partije.</h1>
+          <p>Vrati se na početak, unesi kod tamo i zatim otvori ovaj ekran.</p>
+
+          <Link href="/" className={styles.linkBack}>
+            Nazad na pocetak
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   if (!sessionNickname) {
     return (
       <main className={styles.shell}>
         <section className={styles.centerCard}>
-          <span className={styles.kicker}>Party {code}</span>
+          <span className={styles.kicker}>Party {partyCode}</span>
           <h1>Unesi nadimak za reconnect ili ulazak u lobby.</h1>
           <p>
             Ako partija jos nije pocela, novi igrac moze da se pridruzi. Ako jeste,
@@ -390,7 +428,7 @@ export function PartyShell({ code }: { code: string }) {
       <section className={styles.headerCard}>
         <div className={styles.identity}>
           <span className={styles.kicker}>Kod partije</span>
-          <h1>{code}</h1>
+          <h1>{partyCode}</h1>
           <p>
             Igrac <strong>{sessionNickname}</strong> je povezan.{" "}
             {snapshot?.requester.role ? (
@@ -578,7 +616,7 @@ export function PartyShell({ code }: { code: string }) {
                             type="button"
                             className={styles.primaryButton}
                             disabled={isSubmitting || !snapshot.hostControls.canStart || isConfigDirty}
-                            onClick={() => postAction(`/api/party/${code}/start`, {})}
+                            onClick={() => postAction(`/api/party/${partyCode}/start`, {})}
                           >
                             Pokreni partiju
                           </button>
@@ -611,7 +649,7 @@ export function PartyShell({ code }: { code: string }) {
                         type="button"
                         className={styles.primaryButton}
                         disabled={isSubmitting}
-                        onClick={() => postAction(`/api/party/${code}/advance`, {})}
+                        onClick={() => postAction(`/api/party/${partyCode}/advance`, {})}
                       >
                         Svi su videli uloge, pokreni prvu noc
                       </button>
@@ -640,7 +678,7 @@ export function PartyShell({ code }: { code: string }) {
                               className={styles.choiceButton}
                               disabled={isSubmitting}
                               onClick={() =>
-                                postAction(`/api/party/${code}/action`, {
+                                postAction(`/api/party/${partyCode}/action`, {
                                   targetId: target.id,
                                 })
                               }
@@ -694,7 +732,7 @@ export function PartyShell({ code }: { code: string }) {
                               className={styles.choiceButton}
                               disabled={isSubmitting}
                               onClick={() =>
-                                postAction(`/api/party/${code}/day`, {
+                                postAction(`/api/party/${partyCode}/day`, {
                                   votedOutPlayerId: candidate.id,
                                 })
                               }
@@ -709,7 +747,7 @@ export function PartyShell({ code }: { code: string }) {
                           className={styles.secondaryButton}
                           disabled={isSubmitting}
                           onClick={() =>
-                            postAction(`/api/party/${code}/day`, {
+                            postAction(`/api/party/${partyCode}/day`, {
                               votedOutPlayerId: null,
                             })
                           }
@@ -873,7 +911,7 @@ export function PartyShell({ code }: { code: string }) {
         </>
       ) : (
         <section className={styles.centerCard}>
-          <span className={styles.kicker}>Party {code}</span>
+          <span className={styles.kicker}>Party {partyCode}</span>
           <h1>Ucitavam stanje partije...</h1>
           <p>Ako je sesija istekla, vrati se sa istim nadimkom.</p>
           <Link href="/" className={styles.linkBack}>

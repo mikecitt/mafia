@@ -153,7 +153,7 @@ export interface PartySnapshot {
 }
 
 const TURN_ORDER: NightRole[] = ["lady", "mafia", "doctor", "police"];
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PRESENCE_WINDOW_MS = 15_000;
 const NIGHT_PROMPT_DELAY_MS = 5_000;
 

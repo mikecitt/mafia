@@ -5,6 +5,21 @@ import { useState, useTransition } from "react";
 
 import styles from "./home-shell.module.css";
 
+const CREATE_NICKNAME_KEY = "mafia-last-create-nickname";
+const JOIN_NICKNAME_KEY = "mafia-last-join-nickname";
+
+function saveActivePartyCode(code: string) {
+  localStorage.setItem("mafia-active-party-code", code.toUpperCase());
+}
+
+function readStoredValue(key: string) {
+  return localStorage.getItem(key) ?? "";
+}
+
+function saveStoredValue(key: string, value: string) {
+  localStorage.setItem(key, value);
+}
+
 function saveSession(code: string, nickname: string) {
   localStorage.setItem(
     `mafia-session:${code.toUpperCase()}`,
@@ -16,8 +31,12 @@ export function HomeShell() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [createNickname, setCreateNickname] = useState("");
-  const [joinNickname, setJoinNickname] = useState("");
+  const [createNickname, setCreateNickname] = useState(() =>
+    typeof window === "undefined" ? "" : readStoredValue(CREATE_NICKNAME_KEY),
+  );
+  const [joinNickname, setJoinNickname] = useState(() =>
+    typeof window === "undefined" ? "" : readStoredValue(JOIN_NICKNAME_KEY),
+  );
   const [joinCode, setJoinCode] = useState("");
 
   async function handleCreateSubmit() {
@@ -46,8 +65,10 @@ export function HomeShell() {
           return;
         }
 
+        saveStoredValue(CREATE_NICKNAME_KEY, payload.nickname);
+        saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
-        router.push(`/party/${payload.code}`);
+        router.push("/party");
       })().catch(() => {
         setError("Kreiranje partije nije uspelo.");
       });
@@ -81,8 +102,10 @@ export function HomeShell() {
           return;
         }
 
+        saveStoredValue(JOIN_NICKNAME_KEY, payload.nickname);
+        saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
-        router.push(`/party/${payload.code}`);
+        router.push("/party");
       })().catch(() => {
         setError("Ulazak u partiju nije uspeo.");
       });
