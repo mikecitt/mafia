@@ -142,7 +142,7 @@ export function HomeShell() {
       </section>
 
       <section className={styles.grid}>
-        <section className={styles.panel}>
+        <section className={`${styles.panel} ${styles.panelCompact}`}>
           <div className={styles.panelHeader}>
             <span className={styles.panelKicker}>Host</span>
             <h2>Kreiraj partiju</h2>
@@ -176,7 +176,7 @@ export function HomeShell() {
           </button>
         </section>
 
-        <section className={styles.panel}>
+        <section className={`${styles.panel} ${styles.panelCompact}`}>
           <div className={styles.panelHeader}>
             <span className={styles.panelKicker}>Igrac</span>
             <h2>Udji u partiju</h2>

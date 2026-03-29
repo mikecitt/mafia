@@ -22,6 +22,8 @@ const ROLE_LABELS: Record<string, string> = {
   lady: "Dama",
 };
 
+type MobileSection = "game" | "players" | "rules" | "moderator";
+
 function readActivePartyCode() {
   const raw = localStorage.getItem("mafia-active-party-code");
   return raw ? raw.trim().toUpperCase() : null;
@@ -105,6 +107,7 @@ export function PartyShell() {
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRoleVisible, setIsRoleVisible] = useState(false);
+  const [mobileSection, setMobileSection] = useState<MobileSection>("game");
   const [isConfigDirty, setIsConfigDirty] = useState(false);
   const [totalPlayers, setTotalPlayers] = useState(10);
   const [mafiaCount, setMafiaCount] = useState(2);
@@ -366,6 +369,438 @@ export function PartyShell() {
     Number(hasPolice) -
     Number(hasLady);
   const configInvalid = citizenCount < 1 || totalPlayers < joinedPlayers;
+  const resolvedMobileSection =
+    mobileSection === "moderator" && !snapshot?.moderatorView
+      ? "rules"
+      : mobileSection;
+
+  function renderGamePanel() {
+    if (!snapshot) {
+      return null;
+    }
+
+    return (
+      <article className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <span className={styles.kicker}>Tok partije</span>
+          <h3>Akcija za ovaj ekran</h3>
+        </div>
+
+        {snapshot.phase === "lobby" ? (
+          <div className={styles.stack}>
+            <p className={styles.copy}>
+              Povezano je {snapshot.lobby.joinedCount} od {snapshot.lobby.totalPlayers} igraca.
+            </p>
+            {snapshot.hostControls.canUpdateConfig ? (
+              <form className={styles.configForm} onSubmit={handleConfigSave}>
+                <div className={styles.choiceGrid}>
+                  <label className={styles.field}>
+                    <span>Ukupno igraca</span>
+                    <input
+                      type="number"
+                      min={5}
+                      max={20}
+                      value={totalPlayers}
+                      onChange={(event) => {
+                        setTotalPlayers(Number(event.target.value));
+                        setIsConfigDirty(true);
+                      }}
+                      required
+                    />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span>Broj mafijasa</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={mafiaCount}
+                      onChange={(event) => {
+                        setMafiaCount(Number(event.target.value));
+                        setIsConfigDirty(true);
+                      }}
+                      required
+                    />
+                  </label>
+                </div>
+
+                <div className={styles.toggleList}>
+                  <label className={styles.toggle}>
+                    <input
+                      type="checkbox"
+                      checked={hasDoctor}
+                      onChange={(event) => {
+                        setHasDoctor(event.target.checked);
+                        setIsConfigDirty(true);
+                      }}
+                    />
+                    <span>Lekar</span>
+                  </label>
+
+                  <label className={styles.toggle}>
+                    <input
+                      type="checkbox"
+                      checked={hasPolice}
+                      onChange={(event) => {
+                        setHasPolice(event.target.checked);
+                        setIsConfigDirty(true);
+                      }}
+                    />
+                    <span>Policajac</span>
+                  </label>
+
+                  <label className={styles.toggle}>
+                    <input
+                      type="checkbox"
+                      checked={hasLady}
+                      onChange={(event) => {
+                        setHasLady(event.target.checked);
+                        setIsConfigDirty(true);
+                      }}
+                    />
+                    <span>Dama</span>
+                  </label>
+                </div>
+
+                <div className={styles.summaryPanel}>
+                  <strong>Gradjana ostaje: {citizenCount}</strong>
+                  <span>
+                    {totalPlayers < joinedPlayers
+                      ? "Ukupan broj igraca ne moze biti manji od vec povezanih."
+                      : citizenCount < 1
+                        ? "Mora ostati makar jedan gradjanin."
+                        : "Konfiguracija je spremna za random dodelu."}
+                  </span>
+                </div>
+
+                <div className={styles.actionRow}>
+                  <button
+                    type="submit"
+                    className={styles.secondaryButton}
+                    disabled={isSubmitting || configInvalid}
+                  >
+                    Sacuvaj konfiguraciju
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    disabled={isSubmitting || !snapshot.hostControls.canStart || isConfigDirty}
+                    onClick={() => postAction(`/api/party/${partyCode}/start`, {})}
+                  >
+                    Pokreni partiju
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <p className={styles.copy}>
+                  Konfiguracija: {snapshot.config.mafiaCount} mafijasa,{" "}
+                  {snapshot.config.hasDoctor ? "1 lekar" : "bez lekara"},{" "}
+                  {snapshot.config.hasPolice ? "1 policajac" : "bez policajca"},{" "}
+                  {snapshot.config.hasLady ? "1 dama" : "bez dame"}.
+                </p>
+                <div className={styles.subtleBlock}>
+                  Ceka se da host sacuva konfiguraciju i pokrene partiju.
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {snapshot.phase === "role-reveal" ? (
+          <div className={styles.stack}>
+            <div className={styles.notePanel}>
+              Svako sada treba da zadrzi klik na svojoj kartici i proveri ulogu.
+            </div>
+
+            {snapshot.hostControls.canAdvanceRoleReveal ? (
+              <button
+                type="button"
+                className={styles.primaryButton}
+                disabled={isSubmitting}
+                onClick={() => postAction(`/api/party/${partyCode}/advance`, {})}
+              >
+                Svi su videli uloge, pokreni prvu noc
+              </button>
+            ) : (
+              <div className={styles.subtleBlock}>
+                Ceka se da host potvrdi da su svi pogledali svoje uloge.
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {(snapshot.phase === "night-role" || snapshot.phase === "night-transition") ? (
+          <div className={styles.stack}>
+            {snapshot.actionState.note ? (
+              <div className={styles.notePanel}>{snapshot.actionState.note}</div>
+            ) : null}
+
+            {snapshot.actionState.canAct ? (
+              <>
+                <p className={styles.copy}>Na potezu si. Izaberi metu na telefonu.</p>
+                <div className={styles.choiceGrid}>
+                  {snapshot.availableTargets.map((target) => (
+                    <button
+                      key={target.id}
+                      type="button"
+                      className={styles.choiceButton}
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        postAction(`/api/party/${partyCode}/action`, {
+                          targetId: target.id,
+                        })
+                      }
+                    >
+                      {target.nickname}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : snapshot.actionState.hasSubmitted ? (
+              <div className={styles.notePanel}>
+                Tvoja akcija je zabelezena
+                {snapshot.actionState.submittedTargetName
+                  ? `: ${snapshot.actionState.submittedTargetName}.`
+                  : "."}
+              </div>
+            ) : (
+              <div className={styles.subtleBlock}>
+                Ovaj ekran sada samo slusa komandu i ceka sledeci prompt.
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {snapshot.phase === "day-summary" ? (
+          <div className={styles.stack}>
+            <div className={styles.summaryPanel}>
+              <strong>Rezultat noci {snapshot.daySummary?.round}</strong>
+              <span>
+                {snapshot.daySummary?.victimName
+                  ? `${snapshot.daySummary.victimName} je ubijen tokom noci.`
+                  : "Tokom noci niko nije ubijen."}
+              </span>
+              <span>
+                {snapshot.daySummary?.silencedName
+                  ? `${snapshot.daySummary.silencedName} je ucutkan za danas.`
+                  : "Nema ucutkanog igraca u ovom krugu."}
+              </span>
+            </div>
+
+            {snapshot.hostControls.canResolveDay ? (
+              <>
+                <p className={styles.copy}>
+                  Host sada oznacava da li je neko prvi put izglasan.
+                </p>
+                <div className={styles.choiceGrid}>
+                  {snapshot.hostControls.voteCandidates.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      className={styles.choiceButton}
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        postAction(`/api/party/${partyCode}/day`, {
+                          votedOutPlayerId: candidate.id,
+                        })
+                      }
+                    >
+                      {candidate.nickname} je izglasan
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    postAction(`/api/party/${partyCode}/day`, {
+                      votedOutPlayerId: null,
+                    })
+                  }
+                >
+                  Niko nije izglasan, vodi sledeci krug
+                </button>
+              </>
+            ) : (
+              <div className={styles.subtleBlock}>
+                Ceka se da host zatvori dnevni ishod.
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {snapshot.phase === "handoff" ? (
+          <div className={styles.stack}>
+            {snapshot.requester.isModerator ? (
+              <div className={styles.notePanel}>
+                Ti sada preuzimas partiju kao moderator. Ispod imas kompletan
+                pregled uloga i dosadasnjih ishoda.
+              </div>
+            ) : (
+              <div className={styles.subtleBlock}>
+                Aplikacija je zavrsila svoj deo. Novi moderator sada vodi
+                partiju uz pomoc svog prikaza.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </article>
+    );
+  }
+
+  function renderPlayersPanel() {
+    if (!snapshot) {
+      return null;
+    }
+
+    return (
+      <article className={`${styles.panel} ${styles.scrollPanel}`}>
+        <div className={styles.panelHeader}>
+          <span className={styles.kicker}>Igraci</span>
+          <h3>Trenutno stanje za ovu partiju</h3>
+        </div>
+
+        <div className={styles.playerList}>
+          {snapshot.players.map((player) => (
+            <div key={player.id} className={styles.playerRow}>
+              <div>
+                <strong>{player.nickname}</strong>
+                <div className={styles.playerMeta}>
+                  {player.isHost ? "Host" : "Igrac"}
+                  {snapshot.requester.isModerator && player.role
+                    ? ` • ${prettyRole(player.role)}`
+                    : ""}
+                </div>
+              </div>
+
+              <div className={styles.rowAside}>
+                <span className={`${styles.badge} ${statusTone(player.status)}`}>
+                  {STATUS_LABELS[player.status]}
+                </span>
+                <span
+                  className={`${styles.dot} ${
+                    player.isConnected ? styles.dotOn : styles.dotOff
+                  }`}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </article>
+    );
+  }
+
+  function renderRulesPanel() {
+    if (!snapshot) {
+      return null;
+    }
+
+    return (
+      <article className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <span className={styles.kicker}>Rezime pravila</span>
+          <h3>Aktivna konfiguracija</h3>
+        </div>
+
+        <div className={styles.ruleGrid}>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.totalPlayers}</strong>
+            <span>ukupno igraca</span>
+          </div>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.mafiaCount}</strong>
+            <span>mafijasa</span>
+          </div>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.hasDoctor ? "Da" : "Ne"}</strong>
+            <span>lekar</span>
+          </div>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.hasPolice ? "Da" : "Ne"}</strong>
+            <span>policajac</span>
+          </div>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.hasLady ? "Da" : "Ne"}</strong>
+            <span>dama</span>
+          </div>
+          <div className={styles.ruleCard}>
+            <strong>{snapshot.config.citizenCount}</strong>
+            <span>gradjana</span>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  function renderModeratorPanel() {
+    if (!snapshot) {
+      return null;
+    }
+
+    if (snapshot.moderatorView) {
+      return (
+        <article className={`${styles.panel} ${styles.scrollPanel}`}>
+          <div className={styles.panelHeader}>
+            <span className={styles.kicker}>Moderator</span>
+            <h3>Kompletan pregled partije</h3>
+          </div>
+
+          <div className={styles.stack}>
+            <div className={styles.playerList}>
+              {snapshot.moderatorView.players.map((player) => (
+                <div key={player.id} className={styles.playerRow}>
+                  <div>
+                    <strong>{player.nickname}</strong>
+                    <div className={styles.playerMeta}>
+                      {prettyRole(player.role)}
+                      {player.isHost ? " • Host" : ""}
+                    </div>
+                  </div>
+                  <span className={`${styles.badge} ${statusTone(player.status)}`}>
+                    {STATUS_LABELS[player.status]}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.history}>
+              {snapshot.moderatorView.history.map((item) => (
+                <div key={item.round} className={styles.historyCard}>
+                  <strong>Noc {item.round}</strong>
+                  <span>
+                    {item.victimName ? `Ubijen: ${item.victimName}` : "Niko nije ubijen"}
+                  </span>
+                  <span>
+                    {item.silencedName
+                      ? `Ucutkan: ${item.silencedName}`
+                      : "Bez ucutkanog igraca"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    return (
+      <article className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <span className={styles.kicker}>Napomena</span>
+          <h3>Tajnost uloga ostaje sacuvana</h3>
+        </div>
+        <p className={styles.copy}>
+          Dok ne dodje do prvog izglasavanja, ovaj ekran krije tudje uloge i
+          prikazuje samo ono sto bi igrac legitimno znao u toku partije.
+        </p>
+      </article>
+    );
+  }
 
   if (!activeCode) {
     return (
@@ -507,405 +942,70 @@ export function PartyShell() {
             </section>
           ) : null}
 
-          <section className={styles.layout}>
+          <section className={styles.mobileTabs}>
+            <div className={styles.tabRow}>
+              <button
+                type="button"
+                className={`${styles.tabButton} ${
+                  resolvedMobileSection === "game" ? styles.tabButtonActive : ""
+                }`}
+                onClick={() => setMobileSection("game")}
+              >
+                Tok
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabButton} ${
+                  resolvedMobileSection === "players" ? styles.tabButtonActive : ""
+                }`}
+                onClick={() => setMobileSection("players")}
+              >
+                Igrači
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabButton} ${
+                  resolvedMobileSection === "rules" ? styles.tabButtonActive : ""
+                }`}
+                onClick={() => setMobileSection("rules")}
+              >
+                Pravila
+              </button>
+              {snapshot.moderatorView ? (
+                <button
+                  type="button"
+                  className={`${styles.tabButton} ${
+                    resolvedMobileSection === "moderator" ? styles.tabButtonActive : ""
+                  }`}
+                  onClick={() => setMobileSection("moderator")}
+                >
+                  Moderator
+                </button>
+              ) : null}
+            </div>
+          </section>
+
+          <section className={styles.mobileLayout}>
+            {resolvedMobileSection === "game" ? renderGamePanel() : null}
+            {resolvedMobileSection === "players" ? renderPlayersPanel() : null}
+            {resolvedMobileSection === "rules" ? (
+              <>
+                {renderRulesPanel()}
+                {renderModeratorPanel()}
+              </>
+            ) : null}
+            {resolvedMobileSection === "moderator" ? renderModeratorPanel() : null}
+          </section>
+
+          <section className={`${styles.layout} ${styles.desktopLayout}`}>
             <div className={styles.column}>
-              <article className={styles.panel}>
-                <div className={styles.panelHeader}>
-                  <span className={styles.kicker}>Tok partije</span>
-                  <h3>Akcija za ovaj ekran</h3>
-                </div>
-
-                {snapshot.phase === "lobby" ? (
-                  <div className={styles.stack}>
-                    <p className={styles.copy}>
-                      Povezano je {snapshot.lobby.joinedCount} od {snapshot.lobby.totalPlayers} igraca.
-                    </p>
-                    {snapshot.hostControls.canUpdateConfig ? (
-                      <form className={styles.configForm} onSubmit={handleConfigSave}>
-                        <div className={styles.choiceGrid}>
-                          <label className={styles.field}>
-                            <span>Ukupno igraca</span>
-                            <input
-                              type="number"
-                              min={5}
-                              max={20}
-                              value={totalPlayers}
-                              onChange={(event) => {
-                                setTotalPlayers(Number(event.target.value));
-                                setIsConfigDirty(true);
-                              }}
-                              required
-                            />
-                          </label>
-
-                          <label className={styles.field}>
-                            <span>Broj mafijasa</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={5}
-                              value={mafiaCount}
-                              onChange={(event) => {
-                                setMafiaCount(Number(event.target.value));
-                                setIsConfigDirty(true);
-                              }}
-                              required
-                            />
-                          </label>
-                        </div>
-
-                        <div className={styles.toggleList}>
-                          <label className={styles.toggle}>
-                            <input
-                              type="checkbox"
-                              checked={hasDoctor}
-                              onChange={(event) => {
-                                setHasDoctor(event.target.checked);
-                                setIsConfigDirty(true);
-                              }}
-                            />
-                            <span>Lekar</span>
-                          </label>
-
-                          <label className={styles.toggle}>
-                            <input
-                              type="checkbox"
-                              checked={hasPolice}
-                              onChange={(event) => {
-                                setHasPolice(event.target.checked);
-                                setIsConfigDirty(true);
-                              }}
-                            />
-                            <span>Policajac</span>
-                          </label>
-
-                          <label className={styles.toggle}>
-                            <input
-                              type="checkbox"
-                              checked={hasLady}
-                              onChange={(event) => {
-                                setHasLady(event.target.checked);
-                                setIsConfigDirty(true);
-                              }}
-                            />
-                            <span>Dama</span>
-                          </label>
-                        </div>
-
-                        <div className={styles.summaryPanel}>
-                          <strong>Gradjana ostaje: {citizenCount}</strong>
-                          <span>
-                            {totalPlayers < joinedPlayers
-                              ? "Ukupan broj igraca ne moze biti manji od vec povezanih."
-                              : citizenCount < 1
-                                ? "Mora ostati makar jedan gradjanin."
-                                : "Konfiguracija je spremna za random dodelu."}
-                          </span>
-                        </div>
-
-                        <div className={styles.actionRow}>
-                          <button
-                            type="submit"
-                            className={styles.secondaryButton}
-                            disabled={isSubmitting || configInvalid}
-                          >
-                            Sacuvaj konfiguraciju
-                          </button>
-
-                          <button
-                            type="button"
-                            className={styles.primaryButton}
-                            disabled={isSubmitting || !snapshot.hostControls.canStart || isConfigDirty}
-                            onClick={() => postAction(`/api/party/${partyCode}/start`, {})}
-                          >
-                            Pokreni partiju
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <>
-                        <p className={styles.copy}>
-                          Konfiguracija: {snapshot.config.mafiaCount} mafijasa,{" "}
-                          {snapshot.config.hasDoctor ? "1 lekar" : "bez lekara"},{" "}
-                          {snapshot.config.hasPolice ? "1 policajac" : "bez policajca"},{" "}
-                          {snapshot.config.hasLady ? "1 dama" : "bez dame"}.
-                        </p>
-                        <div className={styles.subtleBlock}>
-                          Ceka se da host sacuva konfiguraciju i pokrene partiju.
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : null}
-
-                {snapshot.phase === "role-reveal" ? (
-                  <div className={styles.stack}>
-                    <div className={styles.notePanel}>
-                      Svako sada treba da zadrzi klik na svojoj kartici i proveri ulogu.
-                    </div>
-
-                    {snapshot.hostControls.canAdvanceRoleReveal ? (
-                      <button
-                        type="button"
-                        className={styles.primaryButton}
-                        disabled={isSubmitting}
-                        onClick={() => postAction(`/api/party/${partyCode}/advance`, {})}
-                      >
-                        Svi su videli uloge, pokreni prvu noc
-                      </button>
-                    ) : (
-                      <div className={styles.subtleBlock}>
-                        Ceka se da host potvrdi da su svi pogledali svoje uloge.
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                {(snapshot.phase === "night-role" || snapshot.phase === "night-transition") ? (
-                  <div className={styles.stack}>
-                    {snapshot.actionState.note ? (
-                      <div className={styles.notePanel}>{snapshot.actionState.note}</div>
-                    ) : null}
-
-                    {snapshot.actionState.canAct ? (
-                      <>
-                        <p className={styles.copy}>Na potezu si. Izaberi metu na telefonu.</p>
-                        <div className={styles.choiceGrid}>
-                          {snapshot.availableTargets.map((target) => (
-                            <button
-                              key={target.id}
-                              type="button"
-                              className={styles.choiceButton}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                postAction(`/api/party/${partyCode}/action`, {
-                                  targetId: target.id,
-                                })
-                              }
-                            >
-                              {target.nickname}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    ) : snapshot.actionState.hasSubmitted ? (
-                      <div className={styles.notePanel}>
-                        Tvoja akcija je zabelezena
-                        {snapshot.actionState.submittedTargetName
-                          ? `: ${snapshot.actionState.submittedTargetName}.`
-                          : "."}
-                      </div>
-                    ) : (
-                      <div className={styles.subtleBlock}>
-                        Ovaj ekran sada samo slusa komandu i ceka sledeci prompt.
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                {snapshot.phase === "day-summary" ? (
-                  <div className={styles.stack}>
-                    <div className={styles.summaryPanel}>
-                      <strong>Rezultat noci {snapshot.daySummary?.round}</strong>
-                      <span>
-                        {snapshot.daySummary?.victimName
-                          ? `${snapshot.daySummary.victimName} je ubijen tokom noci.`
-                          : "Tokom noci niko nije ubijen."}
-                      </span>
-                      <span>
-                        {snapshot.daySummary?.silencedName
-                          ? `${snapshot.daySummary.silencedName} je ucutkan za danas.`
-                          : "Nema ucutkanog igraca u ovom krugu."}
-                      </span>
-                    </div>
-
-                    {snapshot.hostControls.canResolveDay ? (
-                      <>
-                        <p className={styles.copy}>
-                          Host sada oznacava da li je neko prvi put izglasan.
-                        </p>
-                        <div className={styles.choiceGrid}>
-                          {snapshot.hostControls.voteCandidates.map((candidate) => (
-                            <button
-                              key={candidate.id}
-                              type="button"
-                              className={styles.choiceButton}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                postAction(`/api/party/${partyCode}/day`, {
-                                  votedOutPlayerId: candidate.id,
-                                })
-                              }
-                            >
-                              {candidate.nickname} je izglasan
-                            </button>
-                          ))}
-                        </div>
-
-                        <button
-                          type="button"
-                          className={styles.secondaryButton}
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            postAction(`/api/party/${partyCode}/day`, {
-                              votedOutPlayerId: null,
-                            })
-                          }
-                        >
-                          Niko nije izglasan, vodi sledeci krug
-                        </button>
-                      </>
-                    ) : (
-                      <div className={styles.subtleBlock}>
-                        Ceka se da host zatvori dnevni ishod.
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                {snapshot.phase === "handoff" ? (
-                  <div className={styles.stack}>
-                    {snapshot.requester.isModerator ? (
-                      <div className={styles.notePanel}>
-                        Ti sada preuzimas partiju kao moderator. Ispod imas kompletan
-                        pregled uloga i dosadasnjih ishoda.
-                      </div>
-                    ) : (
-                      <div className={styles.subtleBlock}>
-                        Aplikacija je zavrsila svoj deo. Novi moderator sada vodi
-                        partiju uz pomoc svog prikaza.
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-              </article>
-
-              <article className={styles.panel}>
-                <div className={styles.panelHeader}>
-                  <span className={styles.kicker}>Igraci</span>
-                  <h3>Trenutno stanje za ovu partiju</h3>
-                </div>
-
-                <div className={styles.playerList}>
-                  {snapshot.players.map((player) => (
-                    <div key={player.id} className={styles.playerRow}>
-                      <div>
-                        <strong>{player.nickname}</strong>
-                        <div className={styles.playerMeta}>
-                          {player.isHost ? "Host" : "Igrac"}
-                          {snapshot.requester.isModerator && player.role
-                            ? ` • ${prettyRole(player.role)}`
-                            : ""}
-                        </div>
-                      </div>
-
-                      <div className={styles.rowAside}>
-                        <span className={`${styles.badge} ${statusTone(player.status)}`}>
-                          {STATUS_LABELS[player.status]}
-                        </span>
-                        <span
-                          className={`${styles.dot} ${
-                            player.isConnected ? styles.dotOn : styles.dotOff
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </article>
+              {renderGamePanel()}
+              {renderPlayersPanel()}
             </div>
 
             <div className={styles.column}>
-              <article className={styles.panel}>
-                <div className={styles.panelHeader}>
-                  <span className={styles.kicker}>Rezime pravila</span>
-                  <h3>Aktivna konfiguracija</h3>
-                </div>
-
-                <div className={styles.ruleGrid}>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.totalPlayers}</strong>
-                    <span>ukupno igraca</span>
-                  </div>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.mafiaCount}</strong>
-                    <span>mafijasa</span>
-                  </div>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.hasDoctor ? "Da" : "Ne"}</strong>
-                    <span>lekar</span>
-                  </div>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.hasPolice ? "Da" : "Ne"}</strong>
-                    <span>policajac</span>
-                  </div>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.hasLady ? "Da" : "Ne"}</strong>
-                    <span>dama</span>
-                  </div>
-                  <div className={styles.ruleCard}>
-                    <strong>{snapshot.config.citizenCount}</strong>
-                    <span>gradjana</span>
-                  </div>
-                </div>
-              </article>
-
-              {snapshot.moderatorView ? (
-                <article className={styles.panel}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.kicker}>Moderator</span>
-                    <h3>Kompletan pregled partije</h3>
-                  </div>
-
-                  <div className={styles.stack}>
-                    <div className={styles.playerList}>
-                      {snapshot.moderatorView.players.map((player) => (
-                        <div key={player.id} className={styles.playerRow}>
-                          <div>
-                            <strong>{player.nickname}</strong>
-                            <div className={styles.playerMeta}>
-                              {prettyRole(player.role)}
-                              {player.isHost ? " • Host" : ""}
-                            </div>
-                          </div>
-                          <span className={`${styles.badge} ${statusTone(player.status)}`}>
-                            {STATUS_LABELS[player.status]}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={styles.history}>
-                      {snapshot.moderatorView.history.map((item) => (
-                        <div key={item.round} className={styles.historyCard}>
-                          <strong>Noc {item.round}</strong>
-                          <span>
-                            {item.victimName
-                              ? `Ubijen: ${item.victimName}`
-                              : "Niko nije ubijen"}
-                          </span>
-                          <span>
-                            {item.silencedName
-                              ? `Ucutkan: ${item.silencedName}`
-                              : "Bez ucutkanog igraca"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </article>
-              ) : (
-                <article className={styles.panel}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.kicker}>Napomena</span>
-                    <h3>Tajnost uloga ostaje sacuvana</h3>
-                  </div>
-                  <p className={styles.copy}>
-                    Dok ne dodje do prvog izglasavanja, ovaj ekran krije tudje uloge i
-                    prikazuje samo ono sto bi igrac legitimno znao u toku partije.
-                  </p>
-                </article>
-              )}
+              {renderRulesPanel()}
+              {renderModeratorPanel()}
             </div>
           </section>
         </>
