@@ -290,6 +290,20 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+.promptInline {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.promptInline span {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .choiceGrid {
   display: grid;
   gap: 0.75rem;
@@ -515,6 +529,11 @@
 
   .promptCard h2 {
     font-size: clamp(1.3rem, 6vw, 1.9rem);
+  }
+
+  .promptInline {
+    padding: 0.75rem 0.8rem;
+    border-radius: 16px;
   }
 
   .roleHoldButton {

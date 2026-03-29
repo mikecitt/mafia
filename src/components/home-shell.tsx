@@ -1,12 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import styles from "./home-shell.module.css";
 
-const CREATE_NICKNAME_KEY = "mafia-last-create-nickname";
-const JOIN_NICKNAME_KEY = "mafia-last-join-nickname";
+const NICKNAME_KEY = "mafia-last-nickname";
 
 function saveActivePartyCode(code: string) {
   localStorage.setItem("mafia-active-party-code", code.toUpperCase());
@@ -31,13 +30,18 @@ export function HomeShell() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [createNickname, setCreateNickname] = useState(() =>
-    typeof window === "undefined" ? "" : readStoredValue(CREATE_NICKNAME_KEY),
-  );
-  const [joinNickname, setJoinNickname] = useState(() =>
-    typeof window === "undefined" ? "" : readStoredValue(JOIN_NICKNAME_KEY),
+  const [nickname, setNickname] = useState(() =>
+    typeof window === "undefined" ? "" : readStoredValue(NICKNAME_KEY),
   );
   const [joinCode, setJoinCode] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    saveStoredValue(NICKNAME_KEY, nickname);
+  }, [nickname]);
 
   async function handleCreateSubmit() {
     setError(null);
@@ -50,7 +54,7 @@ export function HomeShell() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            nickname: createNickname,
+            nickname,
           }),
         });
 
@@ -65,7 +69,7 @@ export function HomeShell() {
           return;
         }
 
-        saveStoredValue(CREATE_NICKNAME_KEY, payload.nickname);
+        setNickname(payload.nickname);
         saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
         router.push("/party");
@@ -87,7 +91,7 @@ export function HomeShell() {
           },
           body: JSON.stringify({
             code: joinCode,
-            nickname: joinNickname,
+            nickname,
           }),
         });
 
@@ -102,7 +106,7 @@ export function HomeShell() {
           return;
         }
 
-        saveStoredValue(JOIN_NICKNAME_KEY, payload.nickname);
+        setNickname(payload.nickname);
         saveActivePartyCode(payload.code);
         saveSession(payload.code, payload.nickname);
         router.push("/party");
@@ -114,60 +118,36 @@ export function HomeShell() {
 
   return (
     <main className={styles.shell}>
-      <section className={styles.hero}>
-        <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>Mafija / Werewolf Helper</span>
-          <h1>Aplikacija vodi noc dok ne padne prvi moderator.</h1>
-          <p>
-            Host je ujedno i igrac. Igraci ulaze preko koda, dobijaju tajne uloge
-            na telefonu, a aplikacija tokom noci izgovara genericke komande i
-            ceka poteze tacnih uloga.
-          </p>
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <span className={styles.panelKicker}>Nadimak</span>
+          <h1>Tvoj nadimak za ovu partiju</h1>
         </div>
 
-        <div className={styles.heroAside}>
-          <div className={styles.metric}>
-            <strong>8-12</strong>
-            <span>igraca po partiji</span>
-          </div>
-          <div className={styles.metric}>
-            <strong>TTS</strong>
-            <span>glasovne komande u browseru</span>
-          </div>
-          <div className={styles.metric}>
-            <strong>Reconnect</strong>
-            <span>povratak po istom nadimku</span>
-          </div>
-        </div>
+        <label className={styles.field}>
+          <span>Nadimak</span>
+          <input
+            value={nickname}
+            onChange={(event) => setNickname(event.target.value)}
+            placeholder="Na primer Mika"
+            minLength={2}
+            maxLength={24}
+            required
+          />
+        </label>
       </section>
 
       <section className={styles.grid}>
-        <section className={`${styles.panel} ${styles.panelCompact}`}>
+        <section className={`${styles.panel} ${styles.actionPanel}`}>
           <div className={styles.panelHeader}>
             <span className={styles.panelKicker}>Host</span>
             <h2>Kreiraj partiju</h2>
-            <p>
-              Prvo pravis lobby sa svojim nadimkom. Tek nakon kreiranja u lobby-ju
-              podesavas broj igraca i uloge.
-            </p>
           </div>
-
-          <label className={styles.field}>
-            <span>Nadimak hosta</span>
-            <input
-              value={createNickname}
-              onChange={(event) => setCreateNickname(event.target.value)}
-              placeholder="Na primer Mika"
-              minLength={2}
-              maxLength={24}
-              required
-            />
-          </label>
 
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={isPending}
+            disabled={isPending || nickname.trim().length < 2}
             onClick={() => {
               void handleCreateSubmit();
             }}
@@ -176,14 +156,10 @@ export function HomeShell() {
           </button>
         </section>
 
-        <section className={`${styles.panel} ${styles.panelCompact}`}>
+        <section className={`${styles.panel} ${styles.actionPanel}`}>
           <div className={styles.panelHeader}>
             <span className={styles.panelKicker}>Igrac</span>
             <h2>Udji u partiju</h2>
-            <p>
-              Unesi kod i svoj nadimak. Ako se osvezis ili izgubis vezu, vracas se
-              sa istim nadimkom.
-            </p>
           </div>
 
           <label className={styles.field}>
@@ -198,22 +174,10 @@ export function HomeShell() {
             />
           </label>
 
-          <label className={styles.field}>
-            <span>Tvoj nadimak</span>
-            <input
-              value={joinNickname}
-              onChange={(event) => setJoinNickname(event.target.value)}
-              placeholder="Na primer Sara"
-              minLength={2}
-              maxLength={24}
-              required
-            />
-          </label>
-
           <button
             type="button"
             className={styles.secondaryButton}
-            disabled={isPending}
+            disabled={isPending || nickname.trim().length < 2 || joinCode.trim().length !== 5}
             onClick={() => {
               void handleJoinSubmit();
             }}
@@ -221,24 +185,6 @@ export function HomeShell() {
             {isPending ? "Povezujem..." : "Udji u lobby"}
           </button>
         </section>
-      </section>
-
-      <section className={styles.notes}>
-        <div className={styles.noteCard}>
-          <h3>Sta aplikacija radi</h3>
-          <p>
-            Vodi nocni redosled poteza, cuva tajne uloge, objavljuje dnevni ishod i
-            ceka da host oznaci da li je neko prvi put izglasan.
-          </p>
-        </div>
-
-        <div className={styles.noteCard}>
-          <h3>Sta ostaje moderatoru</h3>
-          <p>
-            Kada prvi igrac bude izglasan, njemu se otvara moderatorski prikaz sa
-            svim ulogama i dosadasnjim stanjem partije.
-          </p>
-        </div>
       </section>
 
       {error ? <div className={styles.errorBanner}>{error}</div> : null}

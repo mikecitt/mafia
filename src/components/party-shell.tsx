@@ -386,6 +386,14 @@ export function PartyShell() {
           <h3>Akcija za ovaj ekran</h3>
         </div>
 
+        <div className={styles.promptInline}>
+          <strong>{snapshot.promptText ?? "Partija se priprema."}</strong>
+          <span>{phaseHint(snapshot)}</span>
+          <span className={styles.pollingHint}>
+            {isRefreshing ? "Osvezavam stanje..." : "Stanje se osvezava automatski."}
+          </span>
+        </div>
+
         {snapshot.phase === "lobby" ? (
           <div className={styles.stack}>
             <p className={styles.copy}>
@@ -911,15 +919,6 @@ export function PartyShell() {
 
       {snapshot ? (
         <>
-          <section className={styles.promptCard}>
-            <span className={styles.kicker}>Aktuelni prompt</span>
-            <h2>{snapshot.promptText ?? "Partija se priprema."}</h2>
-            <p>{phaseHint(snapshot)}</p>
-            <span className={styles.pollingHint}>
-              {isRefreshing ? "Osvezavam stanje..." : "Stanje se osvezava automatski."}
-            </span>
-          </section>
-
           {snapshot.requester.role ? (
             <section className={styles.secretCard}>
               <span className={styles.kicker}>Tajna uloga</span>

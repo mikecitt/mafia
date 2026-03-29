@@ -515,6 +515,19 @@ function buildSummaryPrompt(summary: NightSummary, party: Party) {
   return parts.join(" ");
 }
 
+function buildAutoModeratorPrompt(summary: NightSummary, party: Party, moderator: Player) {
+  const silenced = findPlayerById(party, summary.silencedId);
+  const parts = [
+    `${moderator.nickname} je ubijen tokom noći i odmah postaje moderator.`,
+  ];
+
+  if (silenced) {
+    parts.push(`${silenced.nickname} je ućutkan za današnji dan.`);
+  }
+
+  return parts.join(" ");
+}
+
 function resolveNight(party: Party) {
   const mafiaTargetId = party.actions.mafia?.targetId ?? null;
   const doctorSaveId = party.actions.doctor?.targetId ?? null;
@@ -544,11 +557,24 @@ function resolveNight(party: Party) {
 
   party.latestSummary = summary;
   party.history.push(summary);
-  party.phase = "day-summary";
   party.transitionEndsAt = null;
   party.transitionToStepIndex = null;
   party.transitionQueue = [];
   party.transitionCompletion = null;
+
+  if (victim && !party.moderatorId) {
+    party.moderatorId = victim.id;
+    party.phase = "handoff";
+    setPrompt(
+      party,
+      buildAutoModeratorPrompt(summary, party, victim),
+      `handoff-${victim.id}`,
+      null,
+    );
+    return;
+  }
+
+  party.phase = "day-summary";
   setPrompt(party, buildSummaryPrompt(summary, party), "day-summary", null);
 }
 
