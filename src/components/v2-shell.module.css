@@ -131,6 +131,17 @@
   color: var(--text-main);
 }
 
+.button,
+.secondaryButton,
+.dangerButton,
+.ghostButton,
+.choiceButton,
+.roleButton {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .button {
   background: linear-gradient(135deg, var(--accent-strong), #ffc589);
   color: #1c1011;
