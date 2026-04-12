@@ -1,20 +1,22 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
+FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci --prefer-offline --no-audit
 
-FROM node:20-alpine AS builder
-WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-
+FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY src ./src
+COPY public ./public
+COPY next.config.ts tsconfig.json package.json package-lock.json ./
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+  npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app

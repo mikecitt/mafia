@@ -2,6 +2,8 @@ node_modules
 .next
 .git
 .vercel
+.github
+.vscode
 .DS_Store
 coverage
 npm-debug.log*
@@ -9,3 +11,7 @@ yarn-debug.log*
 yarn-error.log*
 .env
 .env.*
+README.md
+AGENTS.md
+CLAUDE.md
+compose.yaml
