@@ -460,22 +460,20 @@ export function PartyShell() {
         }),
       });
 
-      const payload = (await response.json()) as { stopped?: boolean; error?: string };
+      const payload = (await response.json()) as {
+        party?: PartySnapshot;
+        error?: string;
+      };
 
-      if (!response.ok || !payload.stopped) {
+      if (!response.ok || !payload.party) {
         setActionError(payload.error ?? "Stopiranje partije nije uspelo.");
         return;
       }
 
-      removeSession(partyCode);
-      clearActivePartyCode();
-      setSnapshot(null);
-      setSessionNickname(null);
-      setReconnectNickname("");
+      setSnapshot(payload.party);
       setError(null);
       setActionError(null);
-      setTtsEnabled(false);
-      hasInitializedTts.current = false;
+      void fetchSnapshot();
     } catch {
       setActionError("Stopiranje partije nije uspelo.");
     } finally {
