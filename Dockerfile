@@ -6,7 +6,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=mafia-npm-cache,target=/root/.npm \
   npm ci --prefer-offline --no-audit
 
 FROM base AS builder
@@ -15,7 +15,7 @@ COPY src ./src
 COPY public ./public
 COPY next.config.ts tsconfig.json package.json package-lock.json ./
 
-RUN --mount=type=cache,target=/app/.next/cache \
+RUN --mount=type=cache,id=mafia-next-cache,target=/app/.next/cache \
   npm run build
 
 FROM node:20-alpine AS runner
