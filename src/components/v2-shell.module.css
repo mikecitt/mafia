@@ -1,0 +1,293 @@
+.shell {
+  width: min(100vw, 32rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
+  display: grid;
+  gap: 0.8rem;
+  animation: rise-in 240ms ease;
+}
+
+.panel,
+.hero,
+.roleCard {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(17, 12, 14, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  gap: 0.6rem;
+}
+
+.eyebrow {
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.hero h1,
+.panel h2,
+.panel h3 {
+  line-height: 1.02;
+}
+
+.hero h1 {
+  font-size: clamp(1.9rem, 9vw, 3.3rem);
+}
+
+.panel h2 {
+  font-size: 1.2rem;
+}
+
+.hero p,
+.panel p,
+.hint,
+.metaLine {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.stack,
+.toggleList,
+.actions,
+.choiceGrid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span,
+.hint {
+  font-size: 0.92rem;
+}
+
+.field input {
+  min-height: 3.2rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+}
+
+.field input:focus {
+  outline: 2px solid rgba(244, 141, 82, 0.4);
+  outline-offset: 2px;
+}
+
+.summary {
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+.summary strong {
+  display: block;
+  color: var(--text-main);
+  margin-bottom: 0.2rem;
+}
+
+.toggleList {
+  gap: 0.55rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.button,
+.secondaryButton,
+.dangerButton,
+.ghostButton,
+.chip {
+  min-height: 3.15rem;
+  padding: 0.9rem 1rem;
+  border: 0;
+  border-radius: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.button {
+  background: linear-gradient(135deg, var(--accent-strong), #ffc589);
+  color: #1c1011;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dangerButton {
+  background: rgba(217, 101, 101, 0.2);
+  color: #ffd7d7;
+}
+
+.ghostButton {
+  min-height: 2.8rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.button:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled,
+.ghostButton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.choiceGrid {
+  grid-template-columns: 1fr;
+}
+
+.choiceButton {
+  min-height: 3.7rem;
+  padding: 1rem;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  text-align: left;
+  font-weight: 700;
+}
+
+.roleCard {
+  gap: 0.65rem;
+}
+
+.roleButton {
+  min-height: 6.8rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(0, 0, 0, 0.15);
+  color: var(--text-main);
+  text-align: left;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.roleButton strong {
+  font-size: clamp(1.65rem, 8vw, 2.4rem);
+  line-height: 1;
+}
+
+.roleButtonVisible {
+  border-color: rgba(244, 141, 82, 0.35);
+  background:
+    linear-gradient(145deg, rgba(244, 141, 82, 0.24), rgba(244, 141, 82, 0.08)),
+    rgba(0, 0, 0, 0.1);
+}
+
+.phaseBadge,
+.statusBadge,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.1rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+}
+
+.phaseBadge,
+.chip {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.statusAlive {
+  background: rgba(143, 203, 138, 0.16);
+  color: #ddfad8;
+}
+
+.statusDead {
+  background: rgba(217, 101, 101, 0.16);
+  color: #ffd2d2;
+}
+
+.statusOut {
+  background: rgba(228, 185, 104, 0.18);
+  color: #ffe7b8;
+}
+
+.banner,
+.errorBanner {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+}
+
+.banner {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.errorBanner {
+  background: rgba(217, 101, 101, 0.14);
+  border: 1px solid rgba(217, 101, 101, 0.28);
+  color: #ffcbc2;
+}
+
+.topMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.code {
+  font-size: clamp(2rem, 14vw, 3.8rem);
+  line-height: 0.92;
+}
+
+.linkRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.textLink {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.metaLine {
+  font-size: 0.95rem;
+}
+
+@media (min-width: 768px) {
+  .shell {
+    padding-top: 1.4rem;
+  }
+
+  .panel,
+  .hero,
+  .roleCard {
+    padding: 1.15rem;
+  }
+}

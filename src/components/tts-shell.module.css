@@ -1,0 +1,135 @@
+.shell {
+  width: min(100vw, 32rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
+  display: grid;
+  gap: 0.8rem;
+  animation: rise-in 240ms ease;
+}
+
+.panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(17, 12, 14, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.panel h1,
+.panel h2 {
+  line-height: 1.02;
+}
+
+.panel h1 {
+  font-size: clamp(1.8rem, 8vw, 3rem);
+}
+
+.panel p,
+.hint {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span,
+.hint {
+  font-size: 0.92rem;
+}
+
+.field textarea,
+.field select,
+.field input {
+  width: 100%;
+  min-height: 3.1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+}
+
+.field textarea {
+  min-height: 9rem;
+  resize: vertical;
+}
+
+.field textarea:focus,
+.field select:focus,
+.field input:focus {
+  outline: 2px solid rgba(244, 141, 82, 0.4);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.button,
+.secondaryButton {
+  min-height: 3.15rem;
+  padding: 0.9rem 1rem;
+  border: 0;
+  border-radius: 18px;
+  font-weight: 700;
+}
+
+.button {
+  background: linear-gradient(135deg, var(--accent-strong), #ffc589);
+  color: #1c1011;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.button:disabled,
+.secondaryButton:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.banner,
+.errorBanner {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+}
+
+.banner {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.errorBanner {
+  background: rgba(217, 101, 101, 0.14);
+  border: 1px solid rgba(217, 101, 101, 0.28);
+  color: #ffcbc2;
+}
+
+.linkRow {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.textLink {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
