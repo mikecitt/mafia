@@ -131,6 +131,51 @@ function phaseHint(snapshot: PartySnapshot) {
   return "Aplikacija je predala partiju moderatoru.";
 }
 
+function getPreferredVoice() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return null;
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+
+  return (
+    voices.find((voice) => voice.lang.toLowerCase().startsWith("sr")) ??
+    voices.find((voice) => voice.lang.toLowerCase().startsWith("hr")) ??
+    voices[0] ??
+    null
+  );
+}
+
+function speakWithPreferredVoice(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return {
+      ok: false,
+      error: "TTS nije podrzan u ovom browseru.",
+    };
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.96;
+
+  const voice = getPreferredVoice();
+
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  } else {
+    utterance.lang = "sr-RS";
+  }
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+  window.speechSynthesis.speak(utterance);
+
+  return {
+    ok: true,
+    error: null,
+  };
+}
+
 export function V2AppShell() {
   const [activeCode, setActiveCode] = useState<string | null>(null);
   const [nickname, setNickname] = useState("");
@@ -142,6 +187,7 @@ export function V2AppShell() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isRoleVisible, setIsRoleVisible] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
   const [mafiaCount, setMafiaCount] = useState(DEFAULT_PARTY_CONFIG_INPUT.mafiaCount);
   const [hasDoctor, setHasDoctor] = useState(DEFAULT_PARTY_CONFIG_INPUT.hasDoctor);
   const [hasPolice, setHasPolice] = useState(DEFAULT_PARTY_CONFIG_INPUT.hasPolice);
@@ -149,6 +195,7 @@ export function V2AppShell() {
   const [isConfigDirty, setIsConfigDirty] = useState(false);
   const isMounted = useRef(false);
   const fetchSnapshotRef = useRef<(() => Promise<void>) | null>(null);
+  const lastPromptKey = useRef<string | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -245,6 +292,79 @@ export function V2AppShell() {
   useEffect(() => {
     setIsRoleVisible(false);
   }, [snapshot?.phase, snapshot?.promptKey]);
+
+  useEffect(() => {
+    if (
+      !ttsEnabled ||
+      !snapshot?.requester.isHost ||
+      !snapshot.promptText ||
+      !snapshot.promptKey
+    ) {
+      return;
+    }
+
+    if (lastPromptKey.current === snapshot.promptKey) {
+      return;
+    }
+
+    if (snapshot.promptKey.includes("police-result")) {
+      lastPromptKey.current = snapshot.promptKey;
+      return;
+    }
+
+    lastPromptKey.current = snapshot.promptKey;
+    const result = speakWithPreferredVoice(snapshot.promptText);
+
+    if (!result.ok) {
+      setActionError(result.error);
+    }
+  }, [
+    snapshot?.promptKey,
+    snapshot?.promptText,
+    snapshot?.requester.isHost,
+    ttsEnabled,
+  ]);
+
+  function stopSpeech() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+  }
+
+  function handleEnableTts() {
+    if (!snapshot?.requester.isHost || !snapshot.promptText) {
+      return;
+    }
+
+    setActionError(null);
+    setTtsEnabled(true);
+    lastPromptKey.current = snapshot.promptKey ?? null;
+    const result = speakWithPreferredVoice(snapshot.promptText);
+
+    if (!result.ok) {
+      setActionError(result.error);
+    }
+  }
+
+  function handleSpeakCurrentPrompt() {
+    if (!snapshot?.promptText) {
+      return;
+    }
+
+    setActionError(null);
+    const result = speakWithPreferredVoice(snapshot.promptText);
+
+    if (!result.ok) {
+      setActionError(result.error);
+    }
+  }
+
+  function handleDisableTts() {
+    setTtsEnabled(false);
+    stopSpeech();
+  }
 
   async function handleCreate() {
     setActionError(null);
@@ -644,6 +764,41 @@ export function V2AppShell() {
           <p className={styles.metaLine}>
             {snapshot.requester.isHost ? "Ti si host." : "Cekaj sledeci korak."}
           </p>
+        ) : null}
+        {snapshot?.requester.isHost ? (
+          <div className={styles.actions}>
+            {ttsEnabled ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleSpeakCurrentPrompt}
+                >
+                  Procitaj prompt
+                </button>
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  onClick={handleDisableTts}
+                >
+                  Iskljuci glas
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleEnableTts}
+                >
+                  Ukljuci glas
+                </button>
+                <p className={styles.metaLine}>
+                  Na iPhone-u prvo tapni ovde da se glas otkljuca.
+                </p>
+              </>
+            )}
+          </div>
         ) : null}
       </section>
 
