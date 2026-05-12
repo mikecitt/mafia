@@ -15,7 +15,6 @@ function readStoredValue(key: string) {
   const storedValue = safeStorageGet(key);
 
   if (storedValue !== null) {
-    CLIENT_STORAGE_FALLBACK.set(key, storedValue);
     return storedValue;
   }
 
@@ -23,8 +22,13 @@ function readStoredValue(key: string) {
 }
 
 function saveStoredValue(key: string, value: string) {
-  CLIENT_STORAGE_FALLBACK.set(key, value);
-  safeStorageSet(key, value);
+  const didPersist = safeStorageSet(key, value);
+
+  if (!didPersist) {
+    CLIENT_STORAGE_FALLBACK.set(key, value);
+  } else {
+    CLIENT_STORAGE_FALLBACK.delete(key);
+  }
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(NICKNAME_EVENT));
