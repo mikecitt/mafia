@@ -9,14 +9,14 @@ import styles from "./home-shell.module.css";
 
 const NICKNAME_KEY = "mafia-last-nickname";
 const NICKNAME_EVENT = "mafia-nickname-changed";
-const nicknameFallback = new Map<string, string>();
+const NICKNAME_FALLBACK = new Map<string, string>();
 
 function readStoredValue(key: string) {
-  return safeStorageGet(key) ?? nicknameFallback.get(key) ?? "";
+  return safeStorageGet(key) ?? NICKNAME_FALLBACK.get(key) ?? "";
 }
 
 function saveStoredValue(key: string, value: string) {
-  nicknameFallback.set(key, value);
+  NICKNAME_FALLBACK.set(key, value);
   safeStorageSet(key, value);
 
   if (typeof window !== "undefined") {
