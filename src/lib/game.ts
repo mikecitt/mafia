@@ -488,7 +488,7 @@ function getAlivePlayers(party: Party) {
 function getTargetOptions(party: Party, player: Player, role: NightRole) {
   const alivePlayers = getAlivePlayers(party);
 
-  if (role === "doctor") {
+  if (role === "doctor" || role === "lady") {
     return alivePlayers;
   }
 
