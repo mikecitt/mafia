@@ -2,6 +2,11 @@
 
 import { useState, useSyncExternalStore, useTransition } from "react";
 
+import {
+  dispatchBrowserEvent,
+  safeReadStorage,
+  safeWriteStorage,
+} from "@/lib/browser-storage";
 import { saveActivePartyCode } from "@/lib/party-session";
 
 import styles from "./home-shell.module.css";
@@ -14,7 +19,7 @@ function readStoredValue(key: string) {
     return "";
   }
 
-  return localStorage.getItem(key) ?? "";
+  return safeReadStorage(key) ?? "";
 }
 
 function saveStoredValue(key: string, value: string) {
@@ -22,12 +27,12 @@ function saveStoredValue(key: string, value: string) {
     return;
   }
 
-  localStorage.setItem(key, value);
-  window.dispatchEvent(new Event(NICKNAME_EVENT));
+  safeWriteStorage(key, value);
+  dispatchBrowserEvent(NICKNAME_EVENT);
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeWriteStorage(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
@@ -138,7 +143,9 @@ export function HomeShell() {
           <span>Nadimak</span>
           <input
             value={nickname}
-            onChange={(event) => saveStoredValue(NICKNAME_KEY, event.target.value)}
+            onChange={(event) =>
+              saveStoredValue(NICKNAME_KEY, event.target.value)
+            }
             placeholder="Na primer Mika"
             minLength={2}
             maxLength={24}
@@ -176,7 +183,9 @@ export function HomeShell() {
             <span>Kod partije</span>
             <input
               value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+              onChange={(event) =>
+                setJoinCode(event.target.value.toUpperCase())
+              }
               placeholder="ABCDE"
               minLength={5}
               maxLength={5}
@@ -188,7 +197,9 @@ export function HomeShell() {
             type="button"
             className={styles.secondaryButton}
             disabled={
-              isPending || nickname.trim().length < 2 || joinCode.trim().length !== 5
+              isPending ||
+              nickname.trim().length < 2 ||
+              joinCode.trim().length !== 5
             }
             onClick={() => {
               void handleJoinSubmit();
