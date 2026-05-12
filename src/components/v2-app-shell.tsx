@@ -14,6 +14,11 @@ import {
   readActivePartyCode,
   saveActivePartyCode,
 } from "@/lib/party-session";
+import {
+  safeStorageGet,
+  safeStorageRemove,
+  safeStorageSet,
+} from "@/lib/client-storage";
 
 import styles from "./v2-shell.module.css";
 
@@ -26,7 +31,7 @@ const STATUS_LABELS: Record<PlayerStatus, string> = {
 };
 
 function readSession(code: string) {
-  const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
+  const raw = safeStorageGet(`mafia-session:${code.toUpperCase()}`);
 
   if (!raw) {
     return null;
@@ -41,30 +46,22 @@ function readSession(code: string) {
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeStorageSet(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
 }
 
 function removeSession(code: string) {
-  localStorage.removeItem(`mafia-session:${code.toUpperCase()}`);
+  safeStorageRemove(`mafia-session:${code.toUpperCase()}`);
 }
 
 function readSavedNickname() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return localStorage.getItem(NICKNAME_KEY) ?? "";
+  return safeStorageGet(NICKNAME_KEY) ?? "";
 }
 
 function saveSavedNickname(nickname: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  localStorage.setItem(NICKNAME_KEY, nickname);
+  safeStorageSet(NICKNAME_KEY, nickname);
 }
 
 function prettyRole(role: Role | null | undefined) {

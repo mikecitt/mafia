@@ -2,32 +2,30 @@
 
 import { useState, useSyncExternalStore, useTransition } from "react";
 
+import { safeStorageGet, safeStorageSet } from "@/lib/client-storage";
 import { saveActivePartyCode } from "@/lib/party-session";
 
 import styles from "./home-shell.module.css";
 
 const NICKNAME_KEY = "mafia-last-nickname";
 const NICKNAME_EVENT = "mafia-nickname-changed";
+const nicknameFallback = new Map<string, string>();
 
 function readStoredValue(key: string) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return localStorage.getItem(key) ?? "";
+  return safeStorageGet(key) ?? nicknameFallback.get(key) ?? "";
 }
 
 function saveStoredValue(key: string, value: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
+  nicknameFallback.set(key, value);
+  safeStorageSet(key, value);
 
-  localStorage.setItem(key, value);
-  window.dispatchEvent(new Event(NICKNAME_EVENT));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(NICKNAME_EVENT));
+  }
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeStorageSet(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
