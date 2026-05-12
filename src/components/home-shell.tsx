@@ -9,14 +9,21 @@ import styles from "./home-shell.module.css";
 
 const NICKNAME_KEY = "mafia-last-nickname";
 const NICKNAME_EVENT = "mafia-nickname-changed";
-const NICKNAME_FALLBACK = new Map<string, string>();
+const CLIENT_STORAGE_FALLBACK = new Map<string, string>();
 
 function readStoredValue(key: string) {
-  return safeStorageGet(key) ?? NICKNAME_FALLBACK.get(key) ?? "";
+  const storedValue = safeStorageGet(key);
+
+  if (storedValue !== null) {
+    CLIENT_STORAGE_FALLBACK.set(key, storedValue);
+    return storedValue;
+  }
+
+  return CLIENT_STORAGE_FALLBACK.get(key) ?? "";
 }
 
 function saveStoredValue(key: string, value: string) {
-  NICKNAME_FALLBACK.set(key, value);
+  CLIENT_STORAGE_FALLBACK.set(key, value);
   safeStorageSet(key, value);
 
   if (typeof window !== "undefined") {
