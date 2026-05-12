@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
 
 import type { PartySnapshot, PlayerStatus } from "@/lib/game";
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from "@/lib/client-storage";
 import { clearActivePartyCode, readActivePartyCode } from "@/lib/party-session";
 
 import styles from "./party-shell.module.css";
@@ -25,7 +26,7 @@ const ROLE_LABELS: Record<string, string> = {
 type MobileSection = "game" | "players" | "rules" | "moderator";
 
 function readSession(code: string) {
-  const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
+  const raw = safeStorageGet(`mafia-session:${code.toUpperCase()}`);
 
   if (!raw) {
     return null;
@@ -40,14 +41,14 @@ function readSession(code: string) {
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeStorageSet(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
 }
 
 function removeSession(code: string) {
-  localStorage.removeItem(`mafia-session:${code.toUpperCase()}`);
+  safeStorageRemove(`mafia-session:${code.toUpperCase()}`);
 }
 
 function statusTone(status: PlayerStatus) {
