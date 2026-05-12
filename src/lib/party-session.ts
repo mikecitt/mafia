@@ -1,3 +1,10 @@
+import {
+  dispatchBrowserEvent,
+  safeReadStorage,
+  safeRemoveStorage,
+  safeWriteStorage,
+} from "./browser-storage";
+
 export const ACTIVE_PARTY_CODE_KEY = "mafia-active-party-code";
 export const ACTIVE_PARTY_EVENT = "mafia-active-party-changed";
 
@@ -10,7 +17,7 @@ function notifyActivePartyChanged() {
     return;
   }
 
-  window.dispatchEvent(new Event(ACTIVE_PARTY_EVENT));
+  dispatchBrowserEvent(ACTIVE_PARTY_EVENT);
 }
 
 export function readActivePartyCode() {
@@ -25,7 +32,7 @@ export function readActivePartyCode() {
   const raw =
     historyState && typeof historyState[ACTIVE_PARTY_CODE_KEY] === "string"
       ? historyState[ACTIVE_PARTY_CODE_KEY]
-      : null;
+      : safeReadStorage(ACTIVE_PARTY_CODE_KEY);
 
   return raw ? raw.trim().toUpperCase() : null;
 }
@@ -40,14 +47,33 @@ export function saveActivePartyCode(code: string) {
       ? (window.history.state as Record<string, unknown>)
       : {};
 
-  window.history.pushState(
-    {
-      ...currentState,
-      [ACTIVE_PARTY_CODE_KEY]: code.toUpperCase(),
-    },
-    "",
-    getCurrentPath(),
-  );
+  const normalizedCode = code.toUpperCase();
+
+  try {
+    window.history.pushState(
+      {
+        ...currentState,
+        [ACTIVE_PARTY_CODE_KEY]: normalizedCode,
+      },
+      "",
+      getCurrentPath(),
+    );
+  } catch {
+    try {
+      window.history.replaceState(
+        {
+          ...currentState,
+          [ACTIVE_PARTY_CODE_KEY]: normalizedCode,
+        },
+        "",
+        getCurrentPath(),
+      );
+    } catch {
+      // Some embedded browsers lock history state. Storage fallback still works.
+    }
+  }
+
+  safeWriteStorage(ACTIVE_PARTY_CODE_KEY, normalizedCode);
   notifyActivePartyChanged();
 }
 
@@ -63,6 +89,12 @@ export function clearActivePartyCode() {
 
   const nextState = { ...currentState };
   delete nextState[ACTIVE_PARTY_CODE_KEY];
-  window.history.replaceState(nextState, "", getCurrentPath());
+  try {
+    window.history.replaceState(nextState, "", getCurrentPath());
+  } catch {
+    // If history state is unavailable, clearing durable storage is still enough.
+  }
+
+  safeRemoveStorage(ACTIVE_PARTY_CODE_KEY);
   notifyActivePartyChanged();
 }

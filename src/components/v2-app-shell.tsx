@@ -10,6 +10,11 @@ import {
   type Role,
 } from "@/lib/game";
 import {
+  safeReadStorage,
+  safeRemoveStorage,
+  safeWriteStorage,
+} from "@/lib/browser-storage";
+import {
   clearActivePartyCode,
   readActivePartyCode,
   saveActivePartyCode,
@@ -26,7 +31,7 @@ const STATUS_LABELS: Record<PlayerStatus, string> = {
 };
 
 function readSession(code: string) {
-  const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
+  const raw = safeReadStorage(`mafia-session:${code.toUpperCase()}`);
 
   if (!raw) {
     return null;
@@ -41,14 +46,14 @@ function readSession(code: string) {
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeWriteStorage(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
 }
 
 function removeSession(code: string) {
-  localStorage.removeItem(`mafia-session:${code.toUpperCase()}`);
+  safeRemoveStorage(`mafia-session:${code.toUpperCase()}`);
 }
 
 function readSavedNickname() {
@@ -56,7 +61,7 @@ function readSavedNickname() {
     return "";
   }
 
-  return localStorage.getItem(NICKNAME_KEY) ?? "";
+  return safeReadStorage(NICKNAME_KEY) ?? "";
 }
 
 function saveSavedNickname(nickname: string) {
@@ -64,7 +69,7 @@ function saveSavedNickname(nickname: string) {
     return;
   }
 
-  localStorage.setItem(NICKNAME_KEY, nickname);
+  safeWriteStorage(NICKNAME_KEY, nickname);
 }
 
 function prettyRole(role: Role | null | undefined) {
@@ -120,7 +125,10 @@ function phaseHint(snapshot: PartySnapshot) {
     return "Svako proverava svoju ulogu, pa host pokrece prvu noc.";
   }
 
-  if (snapshot.phase === "night-role" || snapshot.phase === "night-transition") {
+  if (
+    snapshot.phase === "night-role" ||
+    snapshot.phase === "night-transition"
+  ) {
     return "Samo odgovarajuca uloga moze da odigra potez.";
   }
 
@@ -188,9 +196,15 @@ export function V2AppShell() {
   const [isBusy, setIsBusy] = useState(false);
   const [isRoleVisible, setIsRoleVisible] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [mafiaCount, setMafiaCount] = useState(DEFAULT_PARTY_CONFIG_INPUT.mafiaCount);
-  const [hasDoctor, setHasDoctor] = useState(DEFAULT_PARTY_CONFIG_INPUT.hasDoctor);
-  const [hasPolice, setHasPolice] = useState(DEFAULT_PARTY_CONFIG_INPUT.hasPolice);
+  const [mafiaCount, setMafiaCount] = useState(
+    DEFAULT_PARTY_CONFIG_INPUT.mafiaCount,
+  );
+  const [hasDoctor, setHasDoctor] = useState(
+    DEFAULT_PARTY_CONFIG_INPUT.hasDoctor,
+  );
+  const [hasPolice, setHasPolice] = useState(
+    DEFAULT_PARTY_CONFIG_INPUT.hasPolice,
+  );
   const [hasLady, setHasLady] = useState(DEFAULT_PARTY_CONFIG_INPUT.hasLady);
   const [isConfigDirty, setIsConfigDirty] = useState(false);
   const isMounted = useRef(false);
@@ -218,7 +232,12 @@ export function V2AppShell() {
   }, []);
 
   useEffect(() => {
-    if (!snapshot || snapshot.phase !== "lobby" || !snapshot.requester.isHost || isConfigDirty) {
+    if (
+      !snapshot ||
+      snapshot.phase !== "lobby" ||
+      !snapshot.requester.isHost ||
+      isConfigDirty
+    ) {
       return;
     }
 
@@ -230,7 +249,11 @@ export function V2AppShell() {
 
   const joinedPlayers = snapshot?.lobby.joinedCount ?? 1;
   const citizenCount =
-    joinedPlayers - mafiaCount - Number(hasDoctor) - Number(hasPolice) - Number(hasLady);
+    joinedPlayers -
+    mafiaCount -
+    Number(hasDoctor) -
+    Number(hasPolice) -
+    Number(hasLady);
   const canStartDraft = joinedPlayers >= 5 && citizenCount >= 1;
 
   async function fetchSnapshot() {
@@ -651,7 +674,9 @@ export function V2AppShell() {
             <span>Kod partije</span>
             <input
               value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+              onChange={(event) =>
+                setJoinCode(event.target.value.toUpperCase())
+              }
               placeholder="ABCDE"
               minLength={5}
               maxLength={5}
@@ -660,7 +685,11 @@ export function V2AppShell() {
           <button
             type="button"
             className={styles.secondaryButton}
-            disabled={isBusy || nickname.trim().length < 2 || joinCode.trim().length !== 5}
+            disabled={
+              isBusy ||
+              nickname.trim().length < 2 ||
+              joinCode.trim().length !== 5
+            }
             onClick={() => {
               void handleJoin();
             }}
@@ -670,7 +699,9 @@ export function V2AppShell() {
         </section>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
-        {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
+        {actionError ? (
+          <div className={styles.errorBanner}>{actionError}</div>
+        ) : null}
       </main>
     );
   }
@@ -681,7 +712,10 @@ export function V2AppShell() {
         <section className={styles.hero}>
           <span className={styles.eyebrow}>Kod partije</span>
           <h1 className={styles.code}>{activeCode}</h1>
-          <p>Unesi isti nadimak za reconnect ili novi nadimak ako je partija jos u lobby-ju.</p>
+          <p>
+            Unesi isti nadimak za reconnect ili novi nadimak ako je partija jos
+            u lobby-ju.
+          </p>
         </section>
 
         <section className={styles.panel}>
@@ -713,7 +747,9 @@ export function V2AppShell() {
         </section>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
-        {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
+        {actionError ? (
+          <div className={styles.errorBanner}>{actionError}</div>
+        ) : null}
       </main>
     );
   }
@@ -724,17 +760,19 @@ export function V2AppShell() {
         <span className={styles.eyebrow}>Partija</span>
         <h1 className={styles.code}>{activeCode}</h1>
         <div className={styles.topMeta}>
-          {snapshot ? <span className={styles.phaseBadge}>{phaseLabel(snapshot)}</span> : null}
           {snapshot ? (
-            <span className={`${styles.statusBadge} ${statusTone(snapshot.requester.status)}`}>
+            <span className={styles.phaseBadge}>{phaseLabel(snapshot)}</span>
+          ) : null}
+          {snapshot ? (
+            <span
+              className={`${styles.statusBadge} ${statusTone(snapshot.requester.status)}`}
+            >
               {STATUS_LABELS[snapshot.requester.status]}
             </span>
           ) : null}
           <span className={styles.chip}>{sessionNickname}</span>
         </div>
-        <p>
-          {snapshot ? phaseHint(snapshot) : "Ucitavam stanje partije..."}
-        </p>
+        <p>{snapshot ? phaseHint(snapshot) : "Ucitavam stanje partije..."}</p>
       </section>
 
       {snapshot?.requester.role ? (
@@ -747,12 +785,24 @@ export function V2AppShell() {
             onPointerUp={() => setIsRoleVisible(false)}
             onPointerLeave={() => setIsRoleVisible(false)}
             onPointerCancel={() => setIsRoleVisible(false)}
+            onMouseDown={() => setIsRoleVisible(true)}
+            onMouseUp={() => setIsRoleVisible(false)}
+            onMouseLeave={() => setIsRoleVisible(false)}
+            onTouchStart={() => setIsRoleVisible(true)}
+            onTouchEnd={() => setIsRoleVisible(false)}
+            onTouchCancel={() => setIsRoleVisible(false)}
             onContextMenu={(event) => event.preventDefault()}
           >
             <span className={styles.hint}>
-              {isRoleVisible ? "Pusti da sakrijes." : "Drzi da vidis svoju ulogu."}
+              {isRoleVisible
+                ? "Pusti da sakrijes."
+                : "Drzi da vidis svoju ulogu."}
             </span>
-            <strong>{isRoleVisible ? prettyRole(snapshot.requester.role) : "Tajna uloga"}</strong>
+            <strong>
+              {isRoleVisible
+                ? prettyRole(snapshot.requester.role)
+                : "Tajna uloga"}
+            </strong>
           </button>
         </section>
       ) : null}
@@ -878,7 +928,9 @@ export function V2AppShell() {
                 <button
                   type="button"
                   className={styles.button}
-                  disabled={isBusy || !canStartDraft || !snapshot.hostControls.canStart}
+                  disabled={
+                    isBusy || !canStartDraft || !snapshot.hostControls.canStart
+                  }
                   onClick={() => {
                     void handleStartGame();
                   }}
@@ -888,7 +940,9 @@ export function V2AppShell() {
               </div>
             </div>
           ) : (
-            <div className={styles.banner}>Host podesava konfiguraciju i pokrece partiju.</div>
+            <div className={styles.banner}>
+              Host podesava konfiguraciju i pokrece partiju.
+            </div>
           )}
         </section>
       ) : null}
@@ -908,15 +962,20 @@ export function V2AppShell() {
               Svi su videli uloge
             </button>
           ) : (
-            <div className={styles.banner}>Ceka se da host pokrene prvu noc.</div>
+            <div className={styles.banner}>
+              Ceka se da host pokrene prvu noc.
+            </div>
           )}
         </section>
       ) : null}
 
-      {(snapshot?.phase === "night-role" || snapshot?.phase === "night-transition") ? (
+      {snapshot?.phase === "night-role" ||
+      snapshot?.phase === "night-transition" ? (
         <section className={styles.panel}>
           <span className={styles.eyebrow}>Noc</span>
-          {snapshot.actionState.note ? <div className={styles.banner}>{snapshot.actionState.note}</div> : null}
+          {snapshot.actionState.note ? (
+            <div className={styles.banner}>{snapshot.actionState.note}</div>
+          ) : null}
           {snapshot.actionState.canAct ? (
             <div className={styles.choiceGrid}>
               {snapshot.availableTargets.map((target) => (
@@ -1005,7 +1064,11 @@ export function V2AppShell() {
       <section className={styles.panel}>
         <span className={styles.eyebrow}>Akcije</span>
         <div className={styles.actions}>
-          <button type="button" className={styles.ghostButton} onClick={disconnect}>
+          <button
+            type="button"
+            className={styles.ghostButton}
+            onClick={disconnect}
+          >
             Promeni nadimak
           </button>
           {snapshot?.hostControls.canStop ? (
@@ -1027,7 +1090,9 @@ export function V2AppShell() {
       </section>
 
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
-      {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
+      {actionError ? (
+        <div className={styles.errorBanner}>{actionError}</div>
+      ) : null}
     </main>
   );
 }

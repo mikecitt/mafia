@@ -1,9 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import type { PartySnapshot, PlayerStatus } from "@/lib/game";
+import {
+  safeReadStorage,
+  safeRemoveStorage,
+  safeWriteStorage,
+} from "@/lib/browser-storage";
 import { clearActivePartyCode, readActivePartyCode } from "@/lib/party-session";
 
 import styles from "./party-shell.module.css";
@@ -25,7 +36,7 @@ const ROLE_LABELS: Record<string, string> = {
 type MobileSection = "game" | "players" | "rules" | "moderator";
 
 function readSession(code: string) {
-  const raw = localStorage.getItem(`mafia-session:${code.toUpperCase()}`);
+  const raw = safeReadStorage(`mafia-session:${code.toUpperCase()}`);
 
   if (!raw) {
     return null;
@@ -40,14 +51,14 @@ function readSession(code: string) {
 }
 
 function saveSession(code: string, nickname: string) {
-  localStorage.setItem(
+  safeWriteStorage(
     `mafia-session:${code.toUpperCase()}`,
     JSON.stringify({ nickname }),
   );
 }
 
 function removeSession(code: string) {
-  localStorage.removeItem(`mafia-session:${code.toUpperCase()}`);
+  safeRemoveStorage(`mafia-session:${code.toUpperCase()}`);
 }
 
 function statusTone(status: PlayerStatus) {
@@ -79,7 +90,10 @@ function phaseHint(snapshot: PartySnapshot) {
     return "Svako sada zadrzava klik na kartici svoje uloge, a host nakon toga pokrece prvu noc.";
   }
 
-  if (snapshot.phase === "night-role" || snapshot.phase === "night-transition") {
+  if (
+    snapshot.phase === "night-role" ||
+    snapshot.phase === "night-transition"
+  ) {
     return "Svi vide isti prompt, ali samo odgovarajuca uloga moze da reaguje.";
   }
 
@@ -139,7 +153,11 @@ export function PartyShell() {
   }, [isConfigDirty, snapshot]);
 
   useEffect(() => {
-    if (!snapshot?.requester.isHost || snapshot.phase !== "lobby" || !sessionNickname) {
+    if (
+      !snapshot?.requester.isHost ||
+      snapshot.phase !== "lobby" ||
+      !sessionNickname
+    ) {
       return;
     }
 
@@ -189,7 +207,9 @@ export function PartyShell() {
           }
 
           if (!response.ok || !payload.party) {
-            setActionError(payload.error ?? "Cuvanje konfiguracije nije uspelo.");
+            setActionError(
+              payload.error ?? "Cuvanje konfiguracije nije uspelo.",
+            );
             return;
           }
 
@@ -289,8 +309,7 @@ export function PartyShell() {
     utterance.lang = "hr-HR";
     utterance.rate = 0.96;
 
-    const matchingVoice = window
-      .speechSynthesis
+    const matchingVoice = window.speechSynthesis
       .getVoices()
       .find((voice) => voice.lang.toLowerCase().startsWith("hr"));
 
@@ -441,7 +460,11 @@ export function PartyShell() {
   }
 
   async function handleStopGame() {
-    if (!window.confirm("Da li sigurno zelis da zaustavis partiju i vratis sve u lobby?")) {
+    if (
+      !window.confirm(
+        "Da li sigurno zelis da zaustavis partiju i vratis sve u lobby?",
+      )
+    ) {
       return;
     }
 
@@ -512,13 +535,17 @@ export function PartyShell() {
           <strong>{snapshot.promptText ?? "Partija se priprema."}</strong>
           <span>{phaseHint(snapshot)}</span>
           <span className={styles.pollingHint}>
-            {isRefreshing ? "Osvezavam stanje..." : "Stanje se osvezava automatski."}
+            {isRefreshing
+              ? "Osvezavam stanje..."
+              : "Stanje se osvezava automatski."}
           </span>
         </div>
 
         {snapshot.phase === "lobby" ? (
           <div className={styles.stack}>
-            <p className={styles.copy}>Povezano je {snapshot.lobby.joinedCount} igraca.</p>
+            <p className={styles.copy}>
+              Povezano je {snapshot.lobby.joinedCount} igraca.
+            </p>
             {snapshot.hostControls.canUpdateConfig ? (
               <div className={styles.configForm}>
                 <div className={styles.choiceGrid}>
@@ -588,7 +615,9 @@ export function PartyShell() {
                 </div>
 
                 <span className={styles.pollingHint}>
-                  {isConfigDirty ? "Primenjujem promene..." : "Promene se cuvaju automatski."}
+                  {isConfigDirty
+                    ? "Primenjujem promene..."
+                    : "Promene se cuvaju automatski."}
                 </span>
 
                 <div className={styles.actionRow}>
@@ -601,7 +630,9 @@ export function PartyShell() {
                       !canStartWithDraft ||
                       !snapshot.hostControls.canStart
                     }
-                    onClick={() => postAction(`/api/party/${partyCode}/start`, {})}
+                    onClick={() =>
+                      postAction(`/api/party/${partyCode}/start`, {})
+                    }
                   >
                     Pokreni partiju
                   </button>
@@ -634,7 +665,9 @@ export function PartyShell() {
                 type="button"
                 className={styles.primaryButton}
                 disabled={isSubmitting}
-                onClick={() => postAction(`/api/party/${partyCode}/advance`, {})}
+                onClick={() =>
+                  postAction(`/api/party/${partyCode}/advance`, {})
+                }
               >
                 Svi su videli uloge, pokreni prvu noc
               </button>
@@ -646,15 +679,20 @@ export function PartyShell() {
           </div>
         ) : null}
 
-        {(snapshot.phase === "night-role" || snapshot.phase === "night-transition") ? (
+        {snapshot.phase === "night-role" ||
+        snapshot.phase === "night-transition" ? (
           <div className={styles.stack}>
             {snapshot.actionState.note ? (
-              <div className={styles.notePanel}>{snapshot.actionState.note}</div>
+              <div className={styles.notePanel}>
+                {snapshot.actionState.note}
+              </div>
             ) : null}
 
             {snapshot.actionState.canAct ? (
               <>
-                <p className={styles.copy}>Na potezu si. Izaberi metu na telefonu.</p>
+                <p className={styles.copy}>
+                  Na potezu si. Izaberi metu na telefonu.
+                </p>
                 <div className={styles.choiceGrid}>
                   {snapshot.availableTargets.map((target) => (
                     <button
@@ -793,7 +831,9 @@ export function PartyShell() {
               </div>
 
               <div className={styles.rowAside}>
-                <span className={`${styles.badge} ${statusTone(player.status)}`}>
+                <span
+                  className={`${styles.badge} ${statusTone(player.status)}`}
+                >
                   {STATUS_LABELS[player.status]}
                 </span>
                 <span
@@ -875,7 +915,9 @@ export function PartyShell() {
                       {player.isHost ? " • Host" : ""}
                     </div>
                   </div>
-                  <span className={`${styles.badge} ${statusTone(player.status)}`}>
+                  <span
+                    className={`${styles.badge} ${statusTone(player.status)}`}
+                  >
                     {STATUS_LABELS[player.status]}
                   </span>
                 </div>
@@ -887,7 +929,9 @@ export function PartyShell() {
                 <div key={item.round} className={styles.historyCard}>
                   <strong>Noc {item.round}</strong>
                   <span>
-                    {item.victimName ? `Ubijen: ${item.victimName}` : "Niko nije ubijen"}
+                    {item.victimName
+                      ? `Ubijen: ${item.victimName}`
+                      : "Niko nije ubijen"}
                   </span>
                   <span>
                     {item.silencedName
@@ -924,7 +968,11 @@ export function PartyShell() {
           <h1>Na ovom uređaju nema aktivne partije.</h1>
           <p>Vrati se na početak, unesi kod tamo i zatim otvori ovaj ekran.</p>
 
-          <button type="button" className={styles.linkBack} onClick={returnHome}>
+          <button
+            type="button"
+            className={styles.linkBack}
+            onClick={returnHome}
+          >
             Nazad na pocetak
           </button>
         </section>
@@ -939,8 +987,8 @@ export function PartyShell() {
           <span className={styles.kicker}>Party {partyCode}</span>
           <h1>Unesi nadimak za reconnect ili ulazak u lobby.</h1>
           <p>
-            Ako partija jos nije pocela, novi igrac moze da se pridruzi. Ako jeste,
-            isti nadimak vraca postojeceg igraca u partiju.
+            Ako partija jos nije pocela, novi igrac moze da se pridruzi. Ako
+            jeste, isti nadimak vraca postojeceg igraca u partiju.
           </p>
 
           <div className={styles.form}>
@@ -962,9 +1010,15 @@ export function PartyShell() {
             </button>
           </div>
 
-          {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
+          {actionError ? (
+            <div className={styles.errorBanner}>{actionError}</div>
+          ) : null}
 
-          <button type="button" className={styles.linkBack} onClick={returnHome}>
+          <button
+            type="button"
+            className={styles.linkBack}
+            onClick={returnHome}
+          >
             Nazad na pocetak
           </button>
         </section>
@@ -980,18 +1034,20 @@ export function PartyShell() {
           <h1>{partyCode}</h1>
           <p>
             Igrac <strong>{sessionNickname}</strong> je povezan.{" "}
-            {snapshot?.requester.role ? (
-              "Tvoja uloga je sakrivena i vidi se samo dok drzis karticu ispod."
-            ) : (
-              "Host sada u lobby-ju podesava partiju. Uloga ce se pojaviti nakon starta."
-            )}
+            {snapshot?.requester.role
+              ? "Tvoja uloga je sakrivena i vidi se samo dok drzis karticu ispod."
+              : "Host sada u lobby-ju podesava partiju. Uloga ce se pojaviti nakon starta."}
           </p>
         </div>
 
         <div className={styles.headerActions}>
           <div className={styles.badges}>
-            <span className={`${styles.badge} ${snapshot ? statusTone(snapshot.requester.status) : ""}`}>
-              {snapshot ? STATUS_LABELS[snapshot.requester.status] : "Bez stanja"}
+            <span
+              className={`${styles.badge} ${snapshot ? statusTone(snapshot.requester.status) : ""}`}
+            >
+              {snapshot
+                ? STATUS_LABELS[snapshot.requester.status]
+                : "Bez stanja"}
             </span>
 
             <button
@@ -1003,7 +1059,11 @@ export function PartyShell() {
             </button>
           </div>
 
-          <button type="button" className={styles.linkButton} onClick={disconnect}>
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={disconnect}
+          >
             Promeni nadimak
           </button>
           {snapshot?.hostControls.canStop ? (
@@ -1021,7 +1081,9 @@ export function PartyShell() {
       </section>
 
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
-      {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
+      {actionError ? (
+        <div className={styles.errorBanner}>{actionError}</div>
+      ) : null}
 
       {snapshot ? (
         <>
@@ -1037,12 +1099,24 @@ export function PartyShell() {
                 onPointerUp={() => setIsRoleVisible(false)}
                 onPointerLeave={() => setIsRoleVisible(false)}
                 onPointerCancel={() => setIsRoleVisible(false)}
+                onMouseDown={() => setIsRoleVisible(true)}
+                onMouseUp={() => setIsRoleVisible(false)}
+                onMouseLeave={() => setIsRoleVisible(false)}
+                onTouchStart={() => setIsRoleVisible(true)}
+                onTouchEnd={() => setIsRoleVisible(false)}
+                onTouchCancel={() => setIsRoleVisible(false)}
                 onContextMenu={(event) => event.preventDefault()}
               >
                 <span className={styles.roleHoldHint}>
-                  {isRoleVisible ? "Pusti klik da ponovo sakrijes ulogu." : "Drzi klik da vidis svoju ulogu."}
+                  {isRoleVisible
+                    ? "Pusti klik da ponovo sakrijes ulogu."
+                    : "Drzi klik da vidis svoju ulogu."}
                 </span>
-                <strong>{isRoleVisible ? prettyRole(snapshot.requester.role) : "Tajna uloga"}</strong>
+                <strong>
+                  {isRoleVisible
+                    ? prettyRole(snapshot.requester.role)
+                    : "Tajna uloga"}
+                </strong>
               </button>
             </section>
           ) : null}
@@ -1061,7 +1135,9 @@ export function PartyShell() {
               <button
                 type="button"
                 className={`${styles.tabButton} ${
-                  resolvedMobileSection === "players" ? styles.tabButtonActive : ""
+                  resolvedMobileSection === "players"
+                    ? styles.tabButtonActive
+                    : ""
                 }`}
                 onClick={() => setMobileSection("players")}
               >
@@ -1070,7 +1146,9 @@ export function PartyShell() {
               <button
                 type="button"
                 className={`${styles.tabButton} ${
-                  resolvedMobileSection === "rules" ? styles.tabButtonActive : ""
+                  resolvedMobileSection === "rules"
+                    ? styles.tabButtonActive
+                    : ""
                 }`}
                 onClick={() => setMobileSection("rules")}
               >
@@ -1080,7 +1158,9 @@ export function PartyShell() {
                 <button
                   type="button"
                   className={`${styles.tabButton} ${
-                    resolvedMobileSection === "moderator" ? styles.tabButtonActive : ""
+                    resolvedMobileSection === "moderator"
+                      ? styles.tabButtonActive
+                      : ""
                   }`}
                   onClick={() => setMobileSection("moderator")}
                 >
@@ -1099,7 +1179,9 @@ export function PartyShell() {
                 {renderModeratorPanel()}
               </>
             ) : null}
-            {resolvedMobileSection === "moderator" ? renderModeratorPanel() : null}
+            {resolvedMobileSection === "moderator"
+              ? renderModeratorPanel()
+              : null}
           </section>
 
           <section className={`${styles.layout} ${styles.desktopLayout}`}>
@@ -1119,7 +1201,11 @@ export function PartyShell() {
           <span className={styles.kicker}>Party {partyCode}</span>
           <h1>Ucitavam stanje partije...</h1>
           <p>Ako je sesija istekla, vrati se sa istim nadimkom.</p>
-          <button type="button" className={styles.linkBack} onClick={returnHome}>
+          <button
+            type="button"
+            className={styles.linkBack}
+            onClick={returnHome}
+          >
             Nazad na pocetak
           </button>
         </section>
