@@ -80,6 +80,7 @@ export interface Party {
   transitionCompletion: TransitionCompletion | null;
   promptText: string | null;
   promptKey: string | null;
+  simultaneousRoles: NightRole[] | null;
   actions: Partial<Record<NightRole, NightAction>>;
   latestSummary: NightSummary | null;
   history: NightSummary[];
@@ -155,7 +156,7 @@ export interface PartySnapshot {
 const TURN_ORDER: NightRole[] = ["lady", "mafia", "doctor", "police"];
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PRESENCE_WINDOW_MS = 15_000;
-const NIGHT_PROMPT_DELAY_MS = 5_000;
+const NIGHT_PROMPT_DELAY_MS = 2_500;
 
 export const DEFAULT_PARTY_CONFIG_INPUT: PartyConfigInput = {
   mafiaCount: 2,
@@ -237,7 +238,8 @@ function buildNightOrder(config: PartyConfig) {
       return config.hasPolice;
     }
 
-    return config.mafiaCount > 0;
+    // When lady is present, mafia acts simultaneously with her (not as a separate step)
+    return config.mafiaCount > 0 && !config.hasLady;
   });
 }
 
@@ -427,14 +429,37 @@ function beginNightStep(party: Party, stepIndex: number) {
   }
 
   const role = party.nightOrder[stepIndex];
+  const simultaneousRoles: NightRole[] | null =
+    role === "lady" && party.config.mafiaCount > 0 ? ["lady", "mafia"] : null;
+
   party.phase = "night-role";
   party.stepIndex = stepIndex;
   party.transitionEndsAt = null;
   party.transitionToStepIndex = null;
-  setPrompt(party, getRoleText(role, false), `${role}-wake-${stepIndex}`, role);
+  party.simultaneousRoles = simultaneousRoles;
 
-  if (getEligibleActors(party, role).length === 0) {
-    queueSleepTransition(party, role, stepIndex + 1);
+  const wakeText = simultaneousRoles ? "Dama i Mafija se bude." : getRoleText(role, false);
+  setPrompt(party, wakeText, `${role}-wake-${stepIndex}`, role);
+
+  const noEligibleActors = simultaneousRoles
+    ? simultaneousRoles.every((r) => getEligibleActors(party, r).length === 0)
+    : getEligibleActors(party, role).length === 0;
+
+  if (noEligibleActors) {
+    if (simultaneousRoles) {
+      startTransitionSequence(
+        party,
+        [{
+          text: "Dama i Mafija spavaju.",
+          keyId: `lady-mafia-sleep-${stepIndex + 1}`,
+          role,
+          delayMs: NIGHT_PROMPT_DELAY_MS,
+        }],
+        { type: "begin-step", stepIndex: stepIndex + 1 },
+      );
+    } else {
+      queueSleepTransition(party, role, stepIndex + 1);
+    }
   }
 }
 
@@ -444,6 +469,7 @@ function resetRoundState(party: Party) {
   party.nightOrder = buildNightOrder(party.config);
   party.stepIndex = 0;
   party.currentRole = null;
+  party.simultaneousRoles = null;
   party.transitionToStepIndex = null;
   party.transitionEndsAt = null;
   party.transitionQueue = [];
@@ -457,6 +483,7 @@ function resetPartyForLobby(party: Party, promptText?: string) {
   party.nightOrder = [];
   party.stepIndex = 0;
   party.currentRole = null;
+  party.simultaneousRoles = null;
   party.transitionToStepIndex = null;
   party.transitionEndsAt = null;
   party.transitionQueue = [];
@@ -687,6 +714,7 @@ export function createParty(
     nightOrder: [],
     stepIndex: 0,
     currentRole: null,
+    simultaneousRoles: null,
     transitionToStepIndex: null,
     transitionEndsAt: null,
     transitionQueue: [],
@@ -836,28 +864,32 @@ export function submitNightAction(
     throw new Error("Samo zivi igraci mogu da igraju nocne poteze.");
   }
 
-  if (requester.role !== party.currentRole) {
+  const activeRoles: NightRole[] = party.simultaneousRoles ??
+    (party.currentRole ? [party.currentRole] : []);
+
+  if (!activeRoles.includes(requester.role as NightRole)) {
     throw new Error("Trenutno nije na redu tvoja uloga.");
   }
 
-  if (party.currentRole === "mafia" && party.actions.mafia?.targetId) {
+  if (requester.role === "mafia" && party.actions.mafia?.targetId) {
     throw new Error("Meta mafije je vec izabrana.");
   }
 
+  const requesterNightRole = requester.role as NightRole;
   const target = assertTarget(party, targetId);
-  const validTargets = getTargetOptions(party, requester, party.currentRole);
+  const validTargets = getTargetOptions(party, requester, requesterNightRole);
 
   if (!validTargets.some((option) => option.id === target.id)) {
     throw new Error("Taj izbor nije dozvoljen za ovu ulogu.");
   }
 
-  party.actions[party.currentRole] = {
+  party.actions[requesterNightRole] = {
     actorId: requester.id,
     targetId: target.id,
     submittedAt: now(),
   };
 
-  if (party.currentRole === "police") {
+  if (requester.role === "police") {
     startTransitionSequence(
       party,
       [
@@ -879,7 +911,28 @@ export function submitNightAction(
     return;
   }
 
-  queueSleepTransition(party, party.currentRole, party.stepIndex + 1);
+  if (party.simultaneousRoles) {
+    const allDone = party.simultaneousRoles.every((r) => {
+      const eligible = getEligibleActors(party, r);
+      return eligible.length === 0 || party.actions[r]?.targetId;
+    });
+
+    if (allDone) {
+      startTransitionSequence(
+        party,
+        [{
+          text: "Dama i Mafija spavaju.",
+          keyId: `lady-mafia-sleep-${party.stepIndex + 1}`,
+          role: party.currentRole,
+          delayMs: NIGHT_PROMPT_DELAY_MS,
+        }],
+        { type: "begin-step", stepIndex: party.stepIndex + 1 },
+      );
+    }
+    return;
+  }
+
+  queueSleepTransition(party, requesterNightRole, party.stepIndex + 1);
 }
 
 export function resolveDayVote(
@@ -924,12 +977,18 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
   const requester = touchPlayer(party, nickname);
   const effectiveConfig = getEffectiveConfig(party);
   const isModerator = requester.id === party.moderatorId;
-  const currentAction = party.currentRole ? party.actions[party.currentRole] : null;
+  const activeRoles: NightRole[] = party.simultaneousRoles ??
+    (party.currentRole ? [party.currentRole] : []);
+  const requesterNightRole = requester.role as NightRole;
+  const isActiveRole = requester.role !== null && activeRoles.includes(requesterNightRole);
+  const currentAction = isActiveRole
+    ? (party.actions[requesterNightRole] ?? null)
+    : null;
   const canAct =
     party.phase === "night-role" &&
     requester.status === "alive" &&
-    requester.role === party.currentRole &&
-    (!currentAction?.targetId || party.currentRole !== "mafia");
+    isActiveRole &&
+    !currentAction?.targetId;
   const submittedTarget = currentAction?.targetId
     ? findPlayerById(party, currentAction.targetId)
     : null;
@@ -979,8 +1038,8 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
         }
       : null,
     availableTargets:
-      canAct && party.currentRole
-        ? getTargetOptions(party, requester, party.currentRole).map((player) => ({
+      canAct && isActiveRole
+        ? getTargetOptions(party, requester, requesterNightRole).map((player) => ({
             id: player.id,
             nickname: player.nickname,
           }))
@@ -988,9 +1047,9 @@ export function getPartySnapshot(party: Party, nickname: string): PartySnapshot 
     actionState: {
       canAct,
       hasSubmitted:
+        isActiveRole &&
         Boolean(currentAction?.targetId) &&
-        ((currentAction?.actorId === requester.id && requester.role === party.currentRole) ||
-          (requester.role === "mafia" && party.currentRole === "mafia")),
+        (currentAction?.actorId === requester.id || requester.role === "mafia"),
       submittedTargetName: submittedTarget?.nickname ?? null,
       note: getPoliceNote(party, requester),
     },
