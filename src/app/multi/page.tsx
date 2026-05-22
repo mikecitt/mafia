@@ -9,7 +9,7 @@ export default async function MultiPage({
   const raw = parseInt(params.n ?? "8", 10);
   const count = Number.isFinite(raw) && raw > 0 ? Math.min(raw, 64) : 8;
 
-  const cols = Math.ceil(Math.sqrt(count));
+  const cols = Math.ceil(Math.sqrt(count)) + 1;
   const rows = Math.ceil(count / cols);
 
   return (
