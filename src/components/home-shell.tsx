@@ -128,65 +128,43 @@ export function HomeShell() {
 
   return (
     <main className={styles.shell}>
-      <section className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <span className={styles.panelKicker}>Nadimak</span>
-          <h1>Tvoj nadimak za ovu partiju</h1>
-        </div>
+      <div className={styles.topBar}>
+        <button
+          type="button"
+          className={styles.createButton}
+          disabled={isPending || nickname.trim().length < 2}
+          onClick={() => {
+            void handleCreateSubmit();
+          }}
+        >
+          {isPending ? "Kreiram..." : "Nova partija"}
+        </button>
+      </div>
 
-        <label className={styles.field}>
-          <span>Nadimak</span>
+      <div className={styles.form}>
+        <input
+          className={styles.input}
+          value={nickname}
+          onChange={(event) => saveStoredValue(NICKNAME_KEY, event.target.value)}
+          placeholder="Tvoj nadimak"
+          minLength={2}
+          maxLength={24}
+          required
+        />
+
+        <div className={styles.joinRow}>
           <input
-            value={nickname}
-            onChange={(event) => saveStoredValue(NICKNAME_KEY, event.target.value)}
-            placeholder="Na primer Mika"
-            minLength={2}
-            maxLength={24}
+            className={styles.input}
+            value={joinCode}
+            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+            placeholder="Kod partije"
+            minLength={5}
+            maxLength={5}
             required
           />
-        </label>
-      </section>
-
-      <section className={styles.grid}>
-        <section className={`${styles.panel} ${styles.actionPanel}`}>
-          <div className={styles.panelHeader}>
-            <span className={styles.panelKicker}>Host</span>
-            <h2>Kreiraj partiju</h2>
-          </div>
-
           <button
             type="button"
-            className={styles.primaryButton}
-            disabled={isPending || nickname.trim().length < 2}
-            onClick={() => {
-              void handleCreateSubmit();
-            }}
-          >
-            {isPending ? "Kreiram..." : "Kreiraj lobby"}
-          </button>
-        </section>
-
-        <section className={`${styles.panel} ${styles.actionPanel}`}>
-          <div className={styles.panelHeader}>
-            <span className={styles.panelKicker}>Igrac</span>
-            <h2>Udji u partiju</h2>
-          </div>
-
-          <label className={styles.field}>
-            <span>Kod partije</span>
-            <input
-              value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-              placeholder="ABCDE"
-              minLength={5}
-              maxLength={5}
-              required
-            />
-          </label>
-
-          <button
-            type="button"
-            className={styles.secondaryButton}
+            className={styles.joinButton}
             disabled={
               isPending || nickname.trim().length < 2 || joinCode.trim().length !== 5
             }
@@ -194,10 +172,10 @@ export function HomeShell() {
               void handleJoinSubmit();
             }}
           >
-            {isPending ? "Povezujem..." : "Udji u lobby"}
+            {isPending ? "..." : "Udji"}
           </button>
-        </section>
-      </section>
+        </div>
+      </div>
 
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
     </main>
