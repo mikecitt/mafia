@@ -613,61 +613,54 @@ export function V2AppShell() {
   if (!activeCode) {
     return (
       <main className={styles.shell}>
-        <section className={styles.panel}>
-          <h2>Tvoj nadimak</h2>
-          <label className={styles.field}>
-            <span>Nadimak</span>
-            <input
-              value={nickname}
-              onChange={(event) => {
-                const nextNickname = event.target.value;
-                setNickname(nextNickname);
-                saveSavedNickname(nextNickname);
-              }}
-              placeholder="Na primer Mika"
-              minLength={2}
-              maxLength={24}
-            />
-          </label>
-        </section>
-
-        <section className={styles.panel}>
-          <h2>Kreiraj partiju</h2>
+        <div className={styles.homeTopBar}>
           <button
             type="button"
-            className={styles.button}
+            className={styles.createButton}
             disabled={isBusy || nickname.trim().length < 2}
             onClick={() => {
               void handleCreate();
             }}
           >
-            {isBusy ? "Kreiram..." : "Kreiraj lobby"}
+            {isBusy ? "Kreiram..." : "Nova partija"}
           </button>
-        </section>
+        </div>
 
-        <section className={styles.panel}>
-          <h2>Udji u partiju</h2>
-          <label className={styles.field}>
-            <span>Kod partije</span>
+        <div className={styles.homeForm}>
+          <input
+            className={styles.homeInput}
+            value={nickname}
+            onChange={(event) => {
+              const nextNickname = event.target.value;
+              setNickname(nextNickname);
+              saveSavedNickname(nextNickname);
+            }}
+            placeholder="Tvoj nadimak"
+            minLength={2}
+            maxLength={24}
+          />
+
+          <div className={styles.joinRow}>
             <input
+              className={styles.homeInput}
               value={joinCode}
               onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-              placeholder="ABCDE"
+              placeholder="Kod partije"
               minLength={5}
               maxLength={5}
             />
-          </label>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            disabled={isBusy || nickname.trim().length < 2 || joinCode.trim().length !== 5}
-            onClick={() => {
-              void handleJoin();
-            }}
-          >
-            {isBusy ? "Povezujem..." : "Udji u lobby"}
-          </button>
-        </section>
+            <button
+              type="button"
+              className={styles.joinButton}
+              disabled={isBusy || nickname.trim().length < 2 || joinCode.trim().length !== 5}
+              onClick={() => {
+                void handleJoin();
+              }}
+            >
+              {isBusy ? "..." : "Udji"}
+            </button>
+          </div>
+        </div>
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
         {actionError ? <div className={styles.errorBanner}>{actionError}</div> : null}
