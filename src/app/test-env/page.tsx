@@ -21,6 +21,35 @@ const ROLE_COLOR: Record<Role, string> = {
   lady: "#c084fc",
 };
 
+function getPreferredVoice() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  return (
+    voices.find((v) => v.lang.toLowerCase().startsWith("sr")) ??
+    voices.find((v) => v.lang.toLowerCase().startsWith("hr")) ??
+    voices[0] ??
+    null
+  );
+}
+
+function speakText(text: string, voiceUri?: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.96;
+  const voice = voiceUri
+    ? (window.speechSynthesis.getVoices().find((v) => v.voiceURI === voiceUri) ?? getPreferredVoice())
+    : getPreferredVoice();
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  } else {
+    utterance.lang = "sr-RS";
+  }
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+  window.speechSynthesis.speak(utterance);
+}
+
 function getTargets(party: Party, actorId: string, role: NightRole) {
   const alive = party.players.filter((p) => p.status === "alive");
   if (role === "doctor" || role === "lady") return alive;
@@ -166,7 +195,12 @@ export default function TestEnvPage() {
   const [err, setErr] = useState<string | null>(null);
   const [targetId, setTargetId] = useState("");
   const [voteId, setVoteId] = useState("");
+  const [mafiaCount, setMafiaCount] = useState(2);
+  const [hasLady, setHasLady] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [voiceUri, setVoiceUri] = useState("");
+  const [voices, setVoices] = useState<{ label: string; value: string }[]>([]);
   const [busy, setBusy] = useState(false);
 
   const codeRef = useRef(code);
@@ -175,11 +209,14 @@ export default function TestEnvPage() {
   const autoRef = useRef(autoPlay);
   const namesRef = useRef(names);
   const lastAutoKeyRef = useRef("");
+  const lastSpokenKeyRef = useRef<string | null>(null);
+  const voiceUriRef = useRef(voiceUri);
   codeRef.current = code;
   partyRef.current = party;
   busyRef.current = busy;
   autoRef.current = autoPlay;
   namesRef.current = names;
+  voiceUriRef.current = voiceUri;
 
   const fetchParty = useCallback(async (partyCode: string) => {
     const res = await fetch(`/api/test-env/${partyCode}`);
@@ -203,6 +240,37 @@ export default function TestEnvPage() {
     const id = setInterval(() => void poll(), delay);
     return () => clearInterval(id);
   }, [code, party?.phase, poll]);
+
+  // Load available voices
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const sync = () => {
+      const loaded = window.speechSynthesis.getVoices().map((v) => ({
+        label: `${v.name} (${v.lang})`,
+        value: v.voiceURI,
+      }));
+      setVoices(loaded);
+      if (!voiceUriRef.current) {
+        const preferred = getPreferredVoice();
+        if (preferred) setVoiceUri(preferred.voiceURI);
+      }
+    };
+    sync();
+    window.speechSynthesis.addEventListener("voiceschanged", sync);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", sync);
+  }, []);
+
+  // Auto-speak when prompt changes
+  useEffect(() => {
+    if (!ttsEnabled || !party?.promptText || !party.promptKey) return;
+    if (lastSpokenKeyRef.current === party.promptKey) return;
+    if (party.promptKey.includes("police-result")) {
+      lastSpokenKeyRef.current = party.promptKey;
+      return;
+    }
+    lastSpokenKeyRef.current = party.promptKey;
+    speakText(party.promptText, voiceUriRef.current);
+  }, [ttsEnabled, party?.promptKey, party?.promptText]);
 
   // auto-play runner
   const runAutoPlay = useCallback(async () => {
@@ -273,7 +341,7 @@ export default function TestEnvPage() {
       const createRes = await fetch("/api/party/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: host }),
+        body: JSON.stringify({ nickname: host, mafiaCount, hasLady, hasDoctor: true, hasPolice: true }),
       });
       const createData = (await createRes.json()) as { code?: string; error?: string };
       if (createData.error || !createData.code) throw new Error(createData.error ?? "Create failed");
@@ -376,6 +444,33 @@ export default function TestEnvPage() {
           </div>
 
           <div style={{ marginBottom: 20 }}>
+            <div style={s.label}>Broj mafije</div>
+            <div style={s.row}>
+              {[1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  style={{ ...s.btn(mafiaCount === n ? "primary" : "ghost"), padding: "8px 20px" }}
+                  onClick={() => setMafiaCount(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={s.label}>Specijalne uloge</div>
+            <label style={{ ...s.row, gap: 8, cursor: "pointer", fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={hasLady}
+                onChange={(e) => setHasLady(e.target.checked)}
+              />
+              Dama
+            </label>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
             <div style={s.label}>Igrači</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {names.map((name, i) => (
@@ -444,6 +539,44 @@ export default function TestEnvPage() {
       <div style={{ ...s.row, justifyContent: "space-between", marginBottom: 16 }}>
         <div style={s.h1}>Test Environment</div>
         <div style={s.row}>
+          <label style={{ ...s.row, gap: 8, cursor: "pointer", fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={ttsEnabled}
+              onChange={(e) => {
+                setTtsEnabled(e.target.checked);
+                if (!e.target.checked) window.speechSynthesis?.cancel();
+                else if (party?.promptText) {
+                  lastSpokenKeyRef.current = party.promptKey ?? null;
+                  speakText(party.promptText, voiceUri);
+                }
+              }}
+            />
+            TTS
+          </label>
+          {ttsEnabled && (
+            <>
+              <select
+                style={{ ...s.select, fontSize: 12, padding: "4px 8px" }}
+                value={voiceUri}
+                onChange={(e) => setVoiceUri(e.target.value)}
+              >
+                {voices.length === 0 ? (
+                  <option value="">Default</option>
+                ) : (
+                  voices.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))
+                )}
+              </select>
+              <button
+                style={{ ...s.btn("ghost"), padding: "5px 12px", fontSize: 12 }}
+                onClick={() => party?.promptText && speakText(party.promptText, voiceUri)}
+              >
+                ▶ ponovi
+              </button>
+            </>
+          )}
           <label style={{ ...s.row, gap: 8, cursor: "pointer", fontSize: 13 }}>
             <input
               type="checkbox"
