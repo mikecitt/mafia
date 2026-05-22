@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getPartyCode } from "@/lib/game";
+import { ensurePartyProgress, getPartyCode } from "@/lib/game";
 import { getPartyStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,7 @@ export async function GET(
       );
     }
 
+    ensurePartyProgress(party);
     return NextResponse.json({ party });
   } catch (error) {
     return NextResponse.json(
